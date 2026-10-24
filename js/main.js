@@ -39,6 +39,7 @@ function initMobileNav() {
       ? '<i class="fa-solid fa-xmark"></i>' 
       : '<i class="fa-solid fa-bars"></i>';
     toggleBtn.setAttribute('aria-expanded', isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
   });
 
   // Close when clicking a link
@@ -47,6 +48,7 @@ function initMobileNav() {
       if (navLinks.classList.contains('open')) {
         navLinks.classList.remove('open');
         toggleBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+        document.body.style.overflow = '';
       }
     });
   });
