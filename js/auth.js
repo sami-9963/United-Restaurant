@@ -175,8 +175,8 @@ const AuthEngine = {
             <div class="user-menu-dropdown">
               <button class="btn btn-primary btn-sm user-menu-btn" style="background: linear-gradient(135deg, #b91c1c, #7f1d1d); border: 1px solid var(--gold-accent); box-shadow: 0 0 15px rgba(234, 179, 8, 0.35);" onclick="toggleUserMenu(event)">
                 <i class="fa-solid fa-crown text-gold"></i>
-                <span>Owner: ${this.escapeHtml(user.name.split(' ')[0])}</span>
-                <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
+                <span class="nav-user-text">Owner: ${this.escapeHtml(user.name.split(' ')[0])}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
               <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 270px;">
                 <div class="user-dropdown-header" style="background: rgba(234, 179, 8, 0.08); border-bottom: 1px solid rgba(234, 179, 8, 0.25);">
@@ -209,8 +209,8 @@ const AuthEngine = {
             <div class="user-menu-dropdown">
               <button class="btn btn-outline btn-sm user-menu-btn" onclick="toggleUserMenu(event)">
                 <i class="fa-solid fa-circle-user text-gold"></i>
-                <span>${this.escapeHtml(user.name.split(' ')[0])}</span>
-                <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
+                <span class="nav-user-text">${this.escapeHtml(user.name.split(' ')[0])}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
               <div class="user-dropdown-panel" id="userDropdownPanel">
                 <div class="user-dropdown-header">
@@ -232,8 +232,9 @@ const AuthEngine = {
         }
       } else {
         container.innerHTML = `
-          <button class="btn btn-outline btn-sm" onclick="openAuthModal('login');">
-            <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In / Sign Up
+          <button class="btn btn-outline btn-sm nav-auth-btn" onclick="openAuthModal('login');" title="Log In / Sign Up">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            <span class="nav-auth-text">Log In</span>
           </button>
         `;
       }
