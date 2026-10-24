@@ -50,6 +50,8 @@
       </nav>
 
       <div class="nav-actions">
+        <!-- Auth Container -->
+        <div class="nav-auth-container"></div>
         <!-- Cart Trigger on Mobile / Top -->
         <a href="#cart-section" class="btn btn-outline btn-sm" onclick="scrollToCart();">
           <i class="fa-solid fa-bag-shopping text-red"></i> 
@@ -185,6 +187,13 @@
         </p>
       </div>
 
+      <!-- Auth Status Banner inside Modal -->
+      <div id="checkoutAuthNotice" style="margin-bottom: 1.25rem; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25); display: flex; justify-content: space-between; align-items: center;">
+        <div id="checkoutAuthText">
+          <i class="fa-solid fa-user-circle text-gold"></i> Checking login status...
+        </div>
+      </div>
+
       <!-- Order Review Box -->
       <div style="background: var(--bg-dark); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem;">
@@ -192,7 +201,7 @@
           <span id="modalItemSummary" style="color: #fff; font-size: 0.9rem; font-weight: 700;">0 items</span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="color: #fff; font-weight: 700; font-size: 1rem;">Total to Pay:</span>
+          <span style="color: #fff; font-weight: 700; font-size: 1rem;">Total to Pay (Cash):</span>
           <span id="modalTotalPayable" style="color: var(--red-primary); font-family: var(--font-serif); font-size: 1.5rem; font-weight: 800;">৳0</span>
         </div>
       </div>
@@ -214,14 +223,15 @@
           <textarea id="cust-address" class="form-control" placeholder="e.g. House 14, Road 45, Gulshan-2, Dhaka" style="min-height: 80px;" required></textarea>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="cust-payment">Payment Method</label>
-          <select id="cust-payment" class="form-control" style="background: var(--bg-dark);">
-            <option value="Cash on Delivery" selected>Cash on Delivery (Pay when food arrives)</option>
-            <option value="bKash / Nagad">bKash / Nagad Mobile Banking</option>
-            <option value="Card on Delivery">POS Card Machine on Delivery</option>
-          </select>
+        <!-- Cash on Delivery Highlighted Notice -->
+        <div class="cod-highlight-box">
+          <i class="fa-solid fa-money-bill-wave"></i>
+          <div>
+            <h5>Payment: Cash on Delivery (COD)</h5>
+            <p>Pay exact cash to our delivery rider at your doorstep. No online cards or advance payment needed.</p>
+          </div>
         </div>
+        <input type="hidden" id="cust-payment" value="Cash on Delivery (COD)">
 
         <div class="form-group">
           <label class="form-label" for="cust-notes">Special Cooking / Delivery Notes</label>
@@ -229,7 +239,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;">
-          <i class="fa-solid fa-paper-plane"></i> Confirm & Place Order (01950-177666)
+          <i class="fa-solid fa-paper-plane"></i> Confirm & Place Order (Cash on Delivery)
         </button>
       </form>
     </div>
@@ -238,22 +248,26 @@
   <!-- Order Success Modal -->
   <div class="checkout-modal-backdrop" id="successModal">
     <div class="checkout-modal text-center" style="max-width: 480px;">
-      <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(34, 197, 94, 0.15); border: 2px solid #22c55e; color: #22c55e; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+      <div style="width: 75px; height: 75px; border-radius: 50%; background: rgba(34, 197, 94, 0.15); border: 2px solid #22c55e; color: #22c55e; font-size: 2.2rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
         <i class="fa-solid fa-check"></i>
       </div>
-      <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 0.5rem;">Order Placed Successfully!</h3>
-      <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
-        Thank you for ordering with United Restaurant. Your order has been registered and sent directly to our kitchen dispatch desk.
+      <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 0.4rem;">Order Placed Successfully!</h3>
+      <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 1.25rem;">
+        Your Cash on Delivery order is saved and sent directly to our kitchen at United City, Gulshan-2.
       </p>
 
-      <div style="background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1.25rem; margin-bottom: 1.75rem; text-align: left;">
+      <div style="background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: left;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.9rem;">
           <span style="color: var(--text-muted);">Order Reference:</span>
           <strong id="successOrderId" style="color: var(--gold-accent);">#UR-8492</strong>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.9rem;">
-          <span style="color: var(--text-muted);">Total Amount:</span>
-          <strong id="successOrderTotal" style="color: var(--red-primary); font-family: var(--font-serif); font-size: 1.1rem;">৳0</strong>
+          <span style="color: var(--text-muted);">Payment Mode:</span>
+          <strong style="color: #4ade80;">Cash on Delivery</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.9rem;">
+          <span style="color: var(--text-muted);">Total Cash Due:</span>
+          <strong id="successOrderTotal" style="color: var(--red-primary); font-family: var(--font-serif); font-size: 1.2rem;">৳0</strong>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
           <span style="color: var(--text-muted);">Estimated Delivery:</span>
@@ -261,13 +275,18 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem;">
-        <button class="btn btn-primary" style="flex: 1;" onclick="closeSuccessModal();">
-          <i class="fa-solid fa-rotate-left"></i> Order More Food
-        </button>
-        <a href="tel:01950177666" class="btn btn-outline" style="flex: 1;">
-          <i class="fa-solid fa-phone"></i> Call Hotline
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <a id="btnSuccessWhatsApp" href="#" target="_blank" class="btn btn-primary" style="background: #22c55e; border-color: #22c55e; width: 100%; justify-content: center;">
+          <i class="fa-brands fa-whatsapp"></i> Send Order to WhatsApp (01950-177666)
         </a>
+        <div style="display: flex; gap: 0.75rem;">
+          <a href="my-orders.html" class="btn btn-outline" style="flex: 1;">
+            <i class="fa-solid fa-box-open"></i> Track My Orders
+          </a>
+          <button class="btn btn-outline" style="flex: 1;" onclick="closeSuccessModal();">
+            <i class="fa-solid fa-rotate-left"></i> Order More
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -342,6 +361,7 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/auth.js"></script>
 
   <!-- Complete Online Ordering JavaScript Engine -->
   <script>
@@ -1248,6 +1268,32 @@
       }
     }
 
+    // Autofill user fields if logged in
+    function autofillOrderCustomerFields() {
+      const user = (typeof AuthEngine !== 'undefined') ? AuthEngine.getCurrentUser() : null;
+      const noticeText = document.getElementById('checkoutAuthText');
+      
+      if (user) {
+        if (noticeText) {
+          noticeText.innerHTML = `
+            <span><i class="fa-solid fa-circle-check" style="color: #4ade80;"></i> Ordering as: <strong style="color: #fff;">${AuthEngine.escapeHtml(user.name)}</strong> (${AuthEngine.escapeHtml(user.email)})</span>
+          `;
+        }
+        const nameField = document.getElementById('cust-name');
+        const phoneField = document.getElementById('cust-phone');
+        const addrField = document.getElementById('cust-address');
+        if (nameField && !nameField.value) nameField.value = user.name || '';
+        if (phoneField && !phoneField.value) phoneField.value = user.phone || '';
+        if (addrField && !addrField.value) addrField.value = user.address || '';
+      } else {
+        if (noticeText) {
+          noticeText.innerHTML = `
+            <span><i class="fa-solid fa-user-circle text-gold"></i> Ordering as Guest. <a href="javascript:void(0)" onclick="openAuthModal('login');" style="color: var(--gold-accent); text-decoration: underline; font-weight: 600;">Log In / Sign Up</a> to auto-fill address</span>
+          `;
+        }
+      }
+    }
+
     // Modal Control: Open Checkout
     function openCheckoutModal() {
       if (cart.length === 0) return;
@@ -1258,6 +1304,7 @@
       document.getElementById('modalItemSummary').textContent = `${totalItems} items selected`;
       document.getElementById('modalTotalPayable').textContent = `৳${subtotalPrice}`;
 
+      autofillOrderCustomerFields();
       document.getElementById('checkoutModal').classList.add('open');
     }
 
@@ -1283,46 +1330,47 @@
       const name = document.getElementById('cust-name').value;
       const phone = document.getElementById('cust-phone').value;
       const address = document.getElementById('cust-address').value;
-      const payment = document.getElementById('cust-payment').value;
-      const notes = document.getElementById('cust-notes').value || 'None';
-
-      const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+      const notes = document.getElementById('cust-notes').value || '';
       const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-      const orderRef = '#UR-' + Math.floor(1000 + Math.random() * 9000);
 
-      // Build text for WhatsApp dispatch
-      let itemsBreakdown = '';
-      cart.forEach(item => {
-        itemsBreakdown += `• ${item.name} x ${item.qty} = ৳${item.price * item.qty}%0A`;
-      });
+      try {
+        // Place real Cash on Delivery order in database
+        const placedOrder = OrderEngine.placeOrder({
+          items: cart,
+          subtotal: totalPrice,
+          deliveryFee: 0,
+          total: totalPrice,
+          customerName: name,
+          customerPhone: phone,
+          deliveryAddress: address,
+          orderNotes: notes
+        });
 
-      const whatsappText = `*NEW ONLINE ORDER - UNITED RESTAURANT*%0A` +
-        `*Order ID:* ${orderRef}%0A` +
-        `*Customer Name:* ${encodeURIComponent(name)}%0A` +
-        `*Phone:* ${encodeURIComponent(phone)}%0A` +
-        `*Address:* ${encodeURIComponent(address)}%0A` +
-        `*Payment Method:* ${encodeURIComponent(payment)}%0A` +
-        `*Notes:* ${encodeURIComponent(notes)}%0A%0A` +
-        `*ITEMS ORDERED:*%0A${itemsBreakdown}%0A` +
-        `*TOTAL PRICE:* ৳${totalPrice} BDT%0A` +
-        `-----------------------------%0A` +
-        `*Restaurant:* United City, Gulshan-2, Dhaka`;
+        // Close checkout modal
+        closeCheckoutModal();
 
-      // Close checkout modal
-      closeCheckoutModal();
+        // Update success modal with actual order reference and WhatsApp link
+        document.getElementById('successOrderId').textContent = '#' + placedOrder.id;
+        document.getElementById('successOrderTotal').textContent = `৳${placedOrder.total}`;
+        
+        const waUrl = OrderEngine.generateWhatsAppUrl(placedOrder);
+        const btnWa = document.getElementById('btnSuccessWhatsApp');
+        if (btnWa) {
+          btnWa.href = waUrl;
+        }
 
-      // Update and open success modal
-      document.getElementById('successOrderId').textContent = orderRef;
-      document.getElementById('successOrderTotal').textContent = `৳${totalPrice}`;
-      document.getElementById('successModal').classList.add('open');
+        document.getElementById('successModal').classList.add('open');
 
-      // Dispatch order to WhatsApp (Hotline 01950-177666) in new window
-      window.open(`https://wa.me/8801950177666?text=${whatsappText}`, '_blank');
+        // Automatically launch WhatsApp with pre-filled order receipt
+        window.open(waUrl, '_blank');
 
-      // Clear Cart state
-      cart = [];
-      renderCartUI();
-      document.getElementById('orderForm').reset();
+        // Clear Cart state
+        cart = [];
+        renderCartUI();
+        document.getElementById('orderForm').reset();
+      } catch (err) {
+        alert('Could not place order: ' + err.message);
+      }
     }
   </script>
 </body>

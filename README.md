@@ -22,6 +22,8 @@ Built with an opulent **Red & Black** fine-dining theme, smooth micro-interactio
   6. [`location.html`](location.html) — Single location announcement: *"United Restaurant is located in United City, Gulshan-2, Dhaka."* with embedded interactive Google Map, directions, and transit guidance.
   7. [`about.html`](about.html) — Story of United Restaurant, ISO hygiene standards, sterile kitchen protocols, and profiles of executive chefs and service staff.
   8. [`contact.html`](contact.html) — Dedicated contact page with Phone & WhatsApp hotline (`01950-177666`), official email (`alxami.islam@gmail.com`), contact form, and direct contact action cards.
+  9. [`my-orders.html`](my-orders.html) — Customer Order Tracking & History page with live status updates (`Pending`, `Preparing`, `Out for Delivery`, `Delivered`) and direct WhatsApp receipt support.
+  10. [`admin-orders.html`](admin-orders.html) — Kitchen & Restaurant Manager Dispatch Terminal with passcode protection (`united2026`), live incoming order audio dings, status updating, metric counters, and printable kitchen tickets.
 
 ---
 

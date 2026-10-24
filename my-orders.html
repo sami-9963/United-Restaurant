@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders & Receipts — United Restaurant, Gulshan-2, Dhaka</title>
+  <meta name="description" content="View your order history, delivery receipts, and live tracking for United Restaurant in United City, Gulshan-2, Dhaka.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div class="top-bar">
+    <div class="container top-bar-content">
+      <div class="top-bar-item">
+        <i class="fa-solid fa-clock"></i>
+        <span>Open Today: 6:00 AM – 2:00 AM (7 Days a Week)</span>
+      </div>
+      <div class="top-bar-item">
+        <i class="fa-solid fa-location-dot"></i>
+        <span>United City, Gulshan-2, Dhaka</span>
+      </div>
+      <div class="top-bar-item">
+        <span class="badge badge-gold" style="font-size: 0.75rem;">Cash on Delivery Available</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header & Navigation -->
+  <header class="site-header">
+    <div class="container header-container">
+      <a href="index.html" class="brand-logo">
+        <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+          <span class="logo-tagline">Gulshan-2 • Fine Dining</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="menu.html" class="nav-link">Menu</a>
+        <a href="offers.html" class="nav-link">Offers</a>
+        <a href="location.html" class="nav-link">Location</a>
+        <a href="about.html" class="nav-link">About Us</a>
+        <a href="book-table.html" class="nav-link">Book Table</a>
+        <a href="order-online.html" class="nav-link">Order Online</a>
+        <a href="contact.html" class="nav-link">Contact Us</a>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Auth Container -->
+        <div class="nav-auth-container"></div>
+        <button class="mobile-toggle" aria-label="Toggle navigation menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Banner -->
+  <section class="page-banner" style="padding: 2.5rem 0 1.75rem;">
+    <div class="container">
+      <span class="badge badge-red" style="margin-bottom: 0.5rem;">Live Order Tracking</span>
+      <h1 class="page-banner-title" style="margin-bottom: 0.5rem;">My <span>Orders</span></h1>
+      <p class="page-banner-desc">
+        Track your live Cash on Delivery meal orders, view receipts, and connect with our dispatch hotline.
+      </p>
+    </div>
+  </section>
+
+  <!-- Orders Content Section -->
+  <section class="section-padding" style="padding: 2.5rem 0 5rem;">
+    <div class="container" style="max-width: 850px;">
+
+      <!-- Active User Profile Box -->
+      <div id="userProfileBanner" style="background: var(--bg-card); border: 1px solid var(--border-red); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <span style="font-size: 0.8rem; color: var(--gold-accent); text-transform: uppercase; letter-spacing: 1px; font-weight: 700;">Customer Account</span>
+          <h3 id="profileNameDisplay" style="color: #fff; margin: 0.2rem 0; font-size: 1.3rem;">Guest Customer</h3>
+          <p id="profileEmailDisplay" style="color: var(--text-muted); margin: 0; font-size: 0.88rem;">Log in to automatically save and sync orders.</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <a href="order-online.html" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-plus"></i> New Order
+          </a>
+          <button id="btnProfileAuth" class="btn btn-outline btn-sm" onclick="openAuthModal('login');">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Filter / Search by Phone for Guest Orders -->
+      <div style="background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px; position: relative;">
+          <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+          <input type="text" id="orderLookupInput" class="form-control" placeholder="Search by Order ID (e.g. UR-2026-...) or Phone Number" style="padding-left: 2.5rem;" oninput="filterOrdersList();">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="filterOrdersList();">
+          <i class="fa-solid fa-filter"></i> Filter Orders
+        </button>
+      </div>
+
+      <!-- Orders List Container -->
+      <div id="ordersListContainer">
+        <!-- Dynamically rendered by JavaScript -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="brand-logo" style="margin-bottom: 1rem;">
+          <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
+          <div class="logo-text">
+            <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+            <span class="logo-tagline">Gulshan-2, Dhaka</span>
+          </div>
+        </a>
+        <p>A premier luxury multi-cuisine dining destination in United City, Gulshan-2, Dhaka. Open 6:00 AM to 2:00 AM daily.</p>
+        <div class="footer-socials">
+          <a href="#" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="contact.html" class="social-link" aria-label="Contact Us"><i class="fa-solid fa-envelope"></i></a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="footer-title">Navigation</h4>
+        <ul class="footer-links">
+          <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Home</a></li>
+          <li><a href="menu.html"><i class="fa-solid fa-chevron-right"></i> Menu</a></li>
+          <li><a href="offers.html"><i class="fa-solid fa-chevron-right"></i> Offers</a></li>
+          <li><a href="location.html"><i class="fa-solid fa-chevron-right"></i> Location</a></li>
+          <li><a href="about.html"><i class="fa-solid fa-chevron-right"></i> About Us</a></li>
+          <li><a href="book-table.html"><i class="fa-solid fa-chevron-right"></i> Book Table</a></li>
+          <li><a href="order-online.html"><i class="fa-solid fa-chevron-right"></i> Order Online</a></li>
+          <li><a href="contact.html"><i class="fa-solid fa-chevron-right"></i> Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-title">Customer Service</h4>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-phone"></i>
+          <div><a href="tel:01950177666">01950-177666</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-brands fa-whatsapp"></i>
+          <div><a href="https://wa.me/8801950177666" target="_blank">01950-177666 (WhatsApp)</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-envelope"></i>
+          <div><a href="mailto:alxami.islam@gmail.com">alxami.islam@gmail.com</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-location-dot"></i>
+          <div>United City, Gulshan-2, Dhaka</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <p>&copy; 2026 United Restaurant. All rights reserved. United City, Gulshan-2, Dhaka.</p>
+      <p>Luxury Dining • Cash on Delivery • 6:00 AM to 2:00 AM</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMyOrders();
+    });
+
+    function renderMyOrders() {
+      const user = AuthEngine.getCurrentUser();
+      const profileName = document.getElementById('profileNameDisplay');
+      const profileEmail = document.getElementById('profileEmailDisplay');
+      const btnProfileAuth = document.getElementById('btnProfileAuth');
+
+      if (user) {
+        profileName.textContent = user.name;
+        profileEmail.textContent = `${user.email} • ${user.phone || 'No phone set'}`;
+        btnProfileAuth.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Log Out';
+        btnProfileAuth.onclick = () => { AuthEngine.logout(); };
+      } else {
+        profileName.textContent = 'Guest Customer';
+        profileEmail.textContent = 'Log in to sync your orders or search below with your phone number.';
+        btnProfileAuth.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Log In';
+        btnProfileAuth.onclick = () => { openAuthModal('login'); };
+      }
+
+      displayFilteredOrders();
+    }
+
+    function displayFilteredOrders(filterKeyword = '') {
+      const container = document.getElementById('ordersListContainer');
+      const user = AuthEngine.getCurrentUser();
+      const allOrders = OrderEngine.getAllOrders();
+
+      let matchingOrders = [];
+
+      if (filterKeyword.trim()) {
+        const kw = filterKeyword.trim().toLowerCase();
+        matchingOrders = allOrders.filter(o => 
+          o.id.toLowerCase().includes(kw) ||
+          (o.customerPhone && o.customerPhone.includes(kw)) ||
+          (o.customerName && o.customerName.toLowerCase().includes(kw))
+        );
+      } else if (user) {
+        matchingOrders = allOrders.filter(o => 
+          (o.customerEmail && o.customerEmail.toLowerCase() === user.email.toLowerCase()) ||
+          o.userId === user.id ||
+          (o.customerPhone && user.phone && o.customerPhone === user.phone)
+        );
+      } else {
+        // If guest with no filter, show recent orders placed from this browser
+        matchingOrders = allOrders;
+      }
+
+      if (matchingOrders.length === 0) {
+        container.innerHTML = `
+          <div style="background: var(--bg-card); border: 1px dashed rgba(255,255,255,0.15); border-radius: 14px; padding: 3.5rem 2rem; text-align: center;">
+            <div style="font-size: 3rem; color: var(--text-dim); margin-bottom: 1rem;">
+              <i class="fa-solid fa-receipt"></i>
+            </div>
+            <h3 style="color: #fff; font-size: 1.4rem; margin-bottom: 0.5rem;">No Orders Found</h3>
+            <p style="color: var(--text-muted); max-width: 480px; margin: 0 auto 1.5rem; font-size: 0.95rem;">
+              ${user ? "You haven't placed any food orders yet. Explore our multi-cuisine menu and treat yourself!" : "No orders matching your search or logged-in account. Try ordering now with Cash on Delivery!"}
+            </p>
+            <a href="order-online.html" class="btn btn-primary">
+              <i class="fa-solid fa-utensils"></i> Browse Menu & Order Food
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      matchingOrders.forEach(order => {
+        const dateFormatted = new Date(order.createdAt).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+        });
+
+        let statusClass = 'status-pending';
+        let statusIcon = 'fa-clock';
+        if (order.status === 'Preparing') {
+          statusClass = 'status-preparing';
+          statusIcon = 'fa-fire-burner';
+        } else if (order.status === 'Out for Delivery') {
+          statusClass = 'status-onway';
+          statusIcon = 'fa-motorcycle';
+        } else if (order.status === 'Delivered') {
+          statusClass = 'status-delivered';
+          statusIcon = 'fa-circle-check';
+        } else if (order.status === 'Cancelled') {
+          statusClass = 'status-cancelled';
+          statusIcon = 'fa-circle-xmark';
+        }
+
+        const waUrl = OrderEngine.generateWhatsAppUrl(order);
+
+        html += `
+          <div class="order-card fade-in-up">
+            <div class="order-card-header">
+              <div>
+                <span class="order-card-id">#${order.id}</span>
+                <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.2rem;">
+                  <i class="fa-regular fa-calendar"></i> Placed on ${dateFormatted}
+                </div>
+              </div>
+              <div>
+                <span class="status-badge ${statusClass}">
+                  <i class="fa-solid ${statusIcon}"></i> ${order.status}
+                </span>
+              </div>
+            </div>
+
+            <!-- Items Breakdown Table -->
+            <table class="order-items-table">
+              <thead>
+                <tr>
+                  <th>Dish / Drink</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th class="price-col">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${order.items.map(it => `
+                  <tr>
+                    <td>
+                      <strong style="color: #fff;">${it.name}</strong>
+                    </td>
+                    <td style="text-align: center; color: var(--gold-accent); font-weight: 700;">x${it.qty}</td>
+                    <td class="price-col">৳${it.itemTotal}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Delivery & Payment Info -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 0.88rem;">
+              <div style="margin-bottom: 0.35rem; color: var(--text-muted);">
+                <i class="fa-solid fa-location-dot text-red" style="margin-right: 0.4rem;"></i>
+                <strong style="color: #fff;">Delivery Address:</strong> ${order.deliveryAddress}
+              </div>
+              <div style="color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap;">
+                <div><i class="fa-solid fa-phone" style="margin-right: 0.4rem;"></i><strong>Contact:</strong> ${order.customerPhone}</div>
+                <div><i class="fa-solid fa-money-bill-wave text-gold" style="margin-right: 0.4rem;"></i><strong>Payment:</strong> <span style="color: #4ade80; font-weight: 700;">Cash on Delivery (৳${order.total})</span></div>
+              </div>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="order-card-footer">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cash Due: </span>
+                <strong style="font-family: var(--font-serif); font-size: 1.4rem; color: var(--red-primary);">৳${order.total}</strong>
+              </div>
+              <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color: #22c55e; color: #22c55e;">
+                  <i class="fa-brands fa-whatsapp"></i> Chat on WhatsApp (01950-177666)
+                </a>
+                <a href="order-online.html" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-rotate-right"></i> Order Again
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function filterOrdersList() {
+      const kw = document.getElementById('orderLookupInput').value;
+      displayFilteredOrders(kw);
+    }
+  </script>
+</body>
+</html>

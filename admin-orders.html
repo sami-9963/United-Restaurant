@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen & Manager Order Dashboard — United Restaurant</title>
+  <meta name="robots" content="noindex, nofollow">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    .admin-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--red-primary);
+    }
+    .metric-card.gold::before { background: var(--gold-accent); }
+    .metric-card.green::before { background: #22c55e; }
+    .metric-card.blue::before { background: #3b82f6; }
+    .metric-val {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-top: 0.35rem;
+    }
+    .kitchen-tab-btn {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .kitchen-tab-btn.active {
+      background: var(--red-primary);
+      color: #fff;
+      border-color: var(--red-primary);
+    }
+    @media print {
+      body * { visibility: hidden; }
+      .printable-slip, .printable-slip * { visibility: visible; }
+      .printable-slip { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body style="background: #060609;">
+
+  <!-- Header -->
+  <header class="site-header" style="background: rgba(10,10,14,0.95); border-bottom: 1px solid rgba(220,38,38,0.3);">
+    <div class="container header-container">
+      <a href="index.html" class="brand-logo">
+        <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+          <span class="logo-tagline">Kitchen & Manager Dispatch Desk</span>
+        </div>
+      </a>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <span class="badge badge-gold" id="kitchenLiveClock" style="font-family: monospace; font-size: 0.85rem;"></span>
+        <a href="order-online.html" class="btn btn-outline btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> Customer Menu
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Passcode Login Screen (shown if not logged into admin) -->
+  <section id="adminGateScreen" class="section-padding" style="display: none; min-height: 70vh; align-items: center; justify-content: center;">
+    <div class="container" style="max-width: 440px;">
+      <div style="background: var(--bg-card); border: 1px solid var(--border-red); border-radius: 16px; padding: 2.5rem; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(220,38,38,0.15); border: 2px solid var(--red-primary); color: var(--red-primary); font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 0.5rem;">Kitchen Manager Access</h3>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem;">
+          Enter the United Restaurant management passcode to view and manage live incoming Cash on Delivery orders.
+        </p>
+
+        <form onsubmit="handleAdminUnlock(event);">
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <input type="password" id="adminPasscode" class="form-control" placeholder="Enter Manager Passcode" style="text-align: center; font-size: 1.1rem; letter-spacing: 2px;" required autofocus>
+          </div>
+          <div id="gateErrorMsg" style="color: #f87171; font-size: 0.85rem; margin-bottom: 1rem; display: none;">
+            Incorrect passcode. (Default: <code>united2026</code>)
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            <i class="fa-solid fa-key"></i> Unlock Dashboard
+          </button>
+        </form>
+        <div style="margin-top: 1.25rem; font-size: 0.8rem; color: var(--text-dim);">
+          Authorized staff only • United City, Gulshan-2
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Admin Dashboard (Shown after unlock) -->
+  <section id="adminDashboardScreen" class="section-padding" style="display: none; padding: 2.5rem 0 5rem;">
+    <div class="container">
+
+      <!-- Top Dashboard Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+        <div>
+          <span class="badge badge-red" style="margin-bottom: 0.35rem;">United City Kitchen Terminal</span>
+          <h1 style="color: #fff; font-size: 1.8rem; margin: 0;">Live Orders & Dispatch</h1>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="btnAudioToggle" onclick="toggleAudioAlert();">
+            <i class="fa-solid fa-volume-high"></i> Alert Sound: ON
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="seedSampleOrder();" title="Add sample test order">
+            <i class="fa-solid fa-vial"></i> Test Order
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="lockAdmin();">
+            <i class="fa-solid fa-lock"></i> Lock
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Metrics Grid -->
+      <div class="admin-metrics-grid">
+        <div class="metric-card gold">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Total Orders</span>
+          <div class="metric-val" id="metricTotalOrders">0</div>
+        </div>
+        <div class="metric-card green">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Cash to Collect (COD)</span>
+          <div class="metric-val" id="metricTotalCash">৳0</div>
+        </div>
+        <div class="metric-card">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Pending Approval</span>
+          <div class="metric-val text-red" id="metricPendingCount">0</div>
+        </div>
+        <div class="metric-card blue">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">In Preparation / On Way</span>
+          <div class="metric-val" id="metricActiveCount">0</div>
+        </div>
+      </div>
+
+      <!-- Kitchen Filter Tabs -->
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.75rem;">
+        <button class="kitchen-tab-btn active" onclick="setAdminFilter('all', this);">
+          All Orders (<span id="tabCountAll">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setAdminFilter('Pending', this);">
+          ⏳ Pending (<span id="tabCountPending">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setAdminFilter('Preparing', this);">
+          🔥 Preparing (<span id="tabCountPreparing">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setAdminFilter('Out for Delivery', this);">
+          🛵 Out with Rider (<span id="tabCountOnWay">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setAdminFilter('Delivered', this);">
+          ✅ Delivered (<span id="tabCountDelivered">0</span>)
+        </button>
+      </div>
+
+      <!-- Orders Feed -->
+      <div id="adminOrdersFeed">
+        <!-- Rendered by JS -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Audio Tone for New Order Notifications -->
+  <audio id="orderAlertAudio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+  </audio>
+
+  <script src="js/main.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script>
+    const ADMIN_PASSCODE = 'united2026';
+    let currentFilter = 'all';
+    let audioAlertEnabled = true;
+    let lastKnownOrderCount = 0;
+
+    // Clock
+    setInterval(() => {
+      const now = new Date();
+      const el = document.getElementById('kitchenLiveClock');
+      if (el) el.textContent = now.toLocaleTimeString('en-US');
+    }, 1000);
+
+    // Check Auth on load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('ur_admin_unlocked') === 'true') {
+        showDashboard();
+      } else {
+        showGate();
+      }
+      // Periodic check for new orders every 5s
+      setInterval(pollOrders, 5000);
+    });
+
+    function showGate() {
+      document.getElementById('adminGateScreen').style.display = 'flex';
+      document.getElementById('adminDashboardScreen').style.display = 'none';
+    }
+
+    function showDashboard() {
+      document.getElementById('adminGateScreen').style.display = 'none';
+      document.getElementById('adminDashboardScreen').style.display = 'block';
+      renderAdminDashboard();
+    }
+
+    function handleAdminUnlock(e) {
+      e.preventDefault();
+      const input = document.getElementById('adminPasscode').value;
+      if (input === ADMIN_PASSCODE) {
+        sessionStorage.setItem('ur_admin_unlocked', 'true');
+        document.getElementById('gateErrorMsg').style.display = 'none';
+        showDashboard();
+      } else {
+        document.getElementById('gateErrorMsg').style.display = 'block';
+      }
+    }
+
+    function lockAdmin() {
+      sessionStorage.removeItem('ur_admin_unlocked');
+      showGate();
+    }
+
+    function toggleAudioAlert() {
+      audioAlertEnabled = !audioAlertEnabled;
+      const btn = document.getElementById('btnAudioToggle');
+      if (audioAlertEnabled) {
+        btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Alert Sound: ON';
+        btn.style.color = '#4ade80';
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Alert Sound: OFF';
+        btn.style.color = 'var(--text-muted)';
+      }
+    }
+
+    function setAdminFilter(status, btn) {
+      currentFilter = status;
+      document.querySelectorAll('.kitchen-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderAdminDashboard();
+    }
+
+    function pollOrders() {
+      if (sessionStorage.getItem('ur_admin_unlocked') !== 'true') return;
+      const orders = OrderEngine.getAllOrders();
+      if (orders.length > lastKnownOrderCount && lastKnownOrderCount > 0) {
+        if (audioAlertEnabled) {
+          const audio = document.getElementById('orderAlertAudio');
+          if (audio) audio.play().catch(() => {});
+        }
+      }
+      lastKnownOrderCount = orders.length;
+      renderAdminDashboard();
+    }
+
+    function renderAdminDashboard() {
+      const allOrders = OrderEngine.getAllOrders();
+      lastKnownOrderCount = allOrders.length;
+
+      // Calculate Metrics
+      let totalCash = 0;
+      let pendingCount = 0;
+      let preparingCount = 0;
+      let onWayCount = 0;
+      let deliveredCount = 0;
+
+      allOrders.forEach(o => {
+        totalCash += Number(o.total || 0);
+        if (o.status === 'Pending') pendingCount++;
+        else if (o.status === 'Preparing') preparingCount++;
+        else if (o.status === 'Out for Delivery') onWayCount++;
+        else if (o.status === 'Delivered') deliveredCount++;
+      });
+
+      document.getElementById('metricTotalOrders').textContent = allOrders.length;
+      document.getElementById('metricTotalCash').textContent = `৳${totalCash.toLocaleString()}`;
+      document.getElementById('metricPendingCount').textContent = pendingCount;
+      document.getElementById('metricActiveCount').textContent = preparingCount + onWayCount;
+
+      document.getElementById('tabCountAll').textContent = allOrders.length;
+      document.getElementById('tabCountPending').textContent = pendingCount;
+      document.getElementById('tabCountPreparing').textContent = preparingCount;
+      document.getElementById('tabCountOnWay').textContent = onWayCount;
+      document.getElementById('tabCountDelivered').textContent = deliveredCount;
+
+      const feed = document.getElementById('adminOrdersFeed');
+
+      let filtered = allOrders;
+      if (currentFilter !== 'all') {
+        filtered = allOrders.filter(o => o.status === currentFilter);
+      }
+
+      if (filtered.length === 0) {
+        feed.innerHTML = `
+          <div style="background: var(--bg-card); border: 1px dashed rgba(255,255,255,0.15); border-radius: 14px; padding: 3rem 2rem; text-align: center;">
+            <i class="fa-solid fa-check-double" style="font-size: 2.5rem; color: #22c55e; margin-bottom: 0.75rem;"></i>
+            <h3 style="color: #fff; font-size: 1.3rem;">No Orders in this Category</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">New orders placed on the website will instantly appear here with live notification.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(order => {
+        const timeAgo = formatTimeAgo(order.createdAt);
+        const waUrl = OrderEngine.generateWhatsAppUrl(order);
+        
+        let statusClass = 'status-pending';
+        if (order.status === 'Preparing') statusClass = 'status-preparing';
+        else if (order.status === 'Out for Delivery') statusClass = 'status-onway';
+        else if (order.status === 'Delivered') statusClass = 'status-delivered';
+        else if (order.status === 'Cancelled') statusClass = 'status-cancelled';
+
+        html += `
+          <div class="order-card" id="card-${order.id}">
+            <div class="order-card-header">
+              <div>
+                <span class="order-card-id">#${order.id}</span>
+                <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 0.75rem;">
+                  <i class="fa-regular fa-clock"></i> ${timeAgo}
+                </span>
+                <div style="font-size: 0.95rem; color: #fff; margin-top: 0.35rem;">
+                  <strong>${order.customerName}</strong> 
+                  <span style="color: var(--text-muted);">(${order.customerPhone})</span>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span class="status-badge ${statusClass}">${order.status}</span>
+                <div style="color: #4ade80; font-weight: 700; font-size: 1.1rem; margin-top: 0.35rem;">
+                  Cash to Collect: ৳${order.total}
+                </div>
+              </div>
+            </div>
+
+            <!-- Delivery Address & Notes -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.85rem; font-size: 0.88rem;">
+              <div><strong style="color: var(--gold-accent);">📍 Delivery Address:</strong> ${order.deliveryAddress}</div>
+              ${order.orderNotes ? `<div style="margin-top: 0.25rem; color: #fca5a5;"><strong style="color: #fff;">📝 Cooking Note:</strong> ${order.orderNotes}</div>` : ''}
+            </div>
+
+            <!-- Items List -->
+            <table class="order-items-table">
+              <tbody>
+                ${order.items.map(it => `
+                  <tr>
+                    <td><strong style="color: #fff;">${it.name}</strong></td>
+                    <td style="text-align: center; color: var(--gold-accent); font-weight: 700;">x${it.qty}</td>
+                    <td class="price-col">৳${it.itemTotal}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Dispatch & Action Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.06);">
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                ${order.status === 'Pending' ? `
+                  <button class="btn btn-primary btn-sm" onclick="changeStatus('${order.id}', 'Preparing');">
+                    <i class="fa-solid fa-fire-burner"></i> Accept & Prepare
+                  </button>
+                ` : ''}
+                ${order.status === 'Preparing' ? `
+                  <button class="btn btn-primary btn-sm" style="background: #a855f7; border-color: #a855f7;" onclick="changeStatus('${order.id}', 'Out for Delivery');">
+                    <i class="fa-solid fa-motorcycle"></i> Dispatch with Rider
+                  </button>
+                ` : ''}
+                ${order.status === 'Out for Delivery' ? `
+                  <button class="btn btn-primary btn-sm" style="background: #22c55e; border-color: #22c55e;" onclick="changeStatus('${order.id}', 'Delivered');">
+                    <i class="fa-solid fa-circle-check"></i> Mark Delivered & Cash Collected
+                  </button>
+                ` : ''}
+                ${order.status !== 'Cancelled' && order.status !== 'Delivered' ? `
+                  <button class="btn btn-outline btn-sm" style="border-color: #ef4444; color: #ef4444;" onclick="changeStatus('${order.id}', 'Cancelled');">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                  </button>
+                ` : ''}
+              </div>
+
+              <div style="display: flex; gap: 0.5rem;">
+                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color: #22c55e; color: #22c55e;" title="Message Customer on WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i> Customer (${order.customerPhone})
+                </a>
+                <button class="btn btn-outline btn-sm" onclick="printReceipt('${order.id}');" title="Print Kitchen Slip">
+                  <i class="fa-solid fa-print"></i> Slip
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      feed.innerHTML = html;
+    }
+
+    function changeStatus(orderId, newStatus) {
+      OrderEngine.updateStatus(orderId, newStatus);
+      renderAdminDashboard();
+    }
+
+    function printReceipt(orderId) {
+      const orders = OrderEngine.getAllOrders();
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const printWindow = window.open('', '', 'width=600,height=600');
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>United Restaurant - Kitchen Ticket #${order.id}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; font-size: 14px; color: #000; }
+            h2, h4 { margin: 4px 0; text-align: center; }
+            hr { border: none; border-top: 1px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 4px 0; }
+          </style>
+        </head>
+        <body onload="window.print();window.close();">
+          <h2>UNITED RESTAURANT</h2>
+          <h4>United City, Gulshan-2, Dhaka</h4>
+          <h4>Hotline: 01950-177666</h4>
+          <hr>
+          <div><strong>Order:</strong> #${order.id}</div>
+          <div><strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+          <div><strong>Customer:</strong> ${order.customerName}</div>
+          <div><strong>Phone:</strong> ${order.customerPhone}</div>
+          <div><strong>Address:</strong> ${order.deliveryAddress}</div>
+          <div><strong>Payment:</strong> Cash on Delivery</div>
+          <hr>
+          <table>
+            ${order.items.map(it => `
+              <tr>
+                <td>${it.qty}x ${it.name}</td>
+                <td style="text-align: right;">৳${it.itemTotal}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <hr>
+          <table>
+            <tr><td><strong>TOTAL CASH TO COLLECT:</strong></td><td style="text-align: right;"><strong>৳${order.total}</strong></td></tr>
+          </table>
+          <hr>
+          <center>Thank you for dining with United Restaurant!</center>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    function seedSampleOrder() {
+      OrderEngine.placeOrder({
+        items: [
+          { id: 'bd-1', name: 'Kacchi Biryani', price: 780, qty: 2 },
+          { id: 'dr-1', name: 'Gulshan Crimson Sunset Mocktail', price: 320, qty: 2 }
+        ],
+        subtotal: 2200,
+        deliveryFee: 0,
+        total: 2200,
+        customerName: 'Sami Islam',
+        customerPhone: '01950-177666',
+        deliveryAddress: 'House 12, Road 4, United City, Gulshan-2',
+        orderNotes: 'Please include extra mint chutney and spicy salad.'
+      });
+      renderAdminDashboard();
+    }
+
+    function formatTimeAgo(isoString) {
+      const diffSec = Math.floor((new Date() - new Date(isoString)) / 1000);
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHours = Math.floor(diffMin / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return `${Math.floor(diffHours / 24)}d ago`;
+    }
+  </script>
+</body>
+</html>
