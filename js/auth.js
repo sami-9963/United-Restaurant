@@ -9,6 +9,12 @@ const USERS_STORAGE_KEY = 'ur_registered_users';
 const ORDERS_STORAGE_KEY = 'ur_restaurant_orders';
 const RESTAURANT_WHATSAPP = '8801950177666'; // 01950-177666
 
+// Recognized Owner / Admin Emails with Super Admin Powers
+const ADMIN_EMAILS = [
+  'alxami.islam@gmail.com',
+  'admin@unitedrestaurant.com'
+];
+
 // ==========================================
 // 1. USER AUTHENTICATION API
 // ==========================================
@@ -24,11 +30,35 @@ const AuthEngine = {
     }
   },
 
+  // Check if currently logged in user has admin powers
+  isAdmin() {
+    const user = this.getCurrentUser();
+    return !!(user && (user.role === 'admin' || ADMIN_EMAILS.includes((user.email || '').toLowerCase())));
+  },
+
   // Get all registered users from persistent storage
   getUsers() {
     try {
-      const data = localStorage.getItem(USERS_STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
+      let data = localStorage.getItem(USERS_STORAGE_KEY);
+      let users = data ? JSON.parse(data) : [];
+
+      // Auto-seed Owner account if not already present
+      const ownerExists = users.some(u => u.email.toLowerCase() === 'alxami.islam@gmail.com');
+      if (!ownerExists) {
+        users.unshift({
+          id: 'USR-OWNER-001',
+          name: 'Al Sami Islam (Owner)',
+          email: 'alxami.islam@gmail.com',
+          password: 'admin123', // Default owner password
+          phone: '01950-177666',
+          address: 'United City, Gulshan-2, Dhaka',
+          role: 'admin',
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      }
+
+      return users;
     } catch (e) {
       return [];
     }
@@ -47,27 +77,43 @@ const AuthEngine = {
     if (!phone) throw new Error('Please enter your phone number.');
 
     const users = this.getUsers();
-    const existing = users.find(u => u.email === email);
-    if (existing) {
-      throw new Error('An account with this email already exists. Please log in.');
+    const existingIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+
+    const isOwnerEmail = ADMIN_EMAILS.includes(email.toLowerCase());
+    const role = isOwnerEmail ? 'admin' : 'customer';
+
+    let userObj;
+    if (existingIndex >= 0) {
+      // If owner is re-registering with their own chosen password, update it
+      if (isOwnerEmail) {
+        users[existingIndex].password = password;
+        users[existingIndex].name = name;
+        users[existingIndex].phone = phone;
+        users[existingIndex].address = address;
+        users[existingIndex].role = 'admin';
+        userObj = users[existingIndex];
+      } else {
+        throw new Error('An account with this email already exists. Please log in.');
+      }
+    } else {
+      userObj = {
+        id: isOwnerEmail ? 'USR-OWNER-' + Date.now().toString(36).toUpperCase() : 'USR-' + Date.now().toString(36).toUpperCase(),
+        name,
+        email,
+        password,
+        phone,
+        address,
+        role,
+        createdAt: new Date().toISOString()
+      };
+      users.push(userObj);
     }
 
-    const newUser = {
-      id: 'USR-' + Date.now().toString(36).toUpperCase(),
-      name,
-      email,
-      password, // In a purely client-side setup, stored locally; Firebase Auth replaces this when plugged in
-      phone,
-      address,
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 
     // Auto-login after signup
-    this.setCurrentUser(newUser);
-    return newUser;
+    this.setCurrentUser(userObj);
+    return userObj;
   },
 
   // Log in existing user
@@ -76,11 +122,16 @@ const AuthEngine = {
     if (!email || !password) throw new Error('Please enter both email and password.');
 
     const users = this.getUsers();
-    const user = users.find(u => u.email === email && u.password === password);
+    let user = users.find(u => u.email.toLowerCase() === email && u.password === password);
+
+    // If owner email matches, make sure role is admin
+    if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      user.role = 'admin';
+      sessionStorage.setItem('ur_admin_unlocked', 'true');
+    }
 
     if (!user) {
-      // Convenience demo check: if no accounts yet, create demo admin or prompt
-      throw new Error('Invalid email or password. Please verify or create an account.');
+      throw new Error('Invalid email or password. Please verify or use the Owner 1-click button.');
     }
 
     this.setCurrentUser(user);
@@ -89,19 +140,24 @@ const AuthEngine = {
 
   // Set active user session
   setCurrentUser(user) {
-    // Exclude password from active session object for safety
     const safeUser = { ...user };
     delete safeUser.password;
+    if (ADMIN_EMAILS.includes((safeUser.email || '').toLowerCase())) {
+      safeUser.role = 'admin';
+      sessionStorage.setItem('ur_admin_unlocked', 'true');
+    }
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safeUser));
     this.updateNavbarAuthUI();
+    this.updateAdminFloatingBar();
   },
 
   // Log out
   logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem('ur_admin_unlocked');
     this.updateNavbarAuthUI();
-    // If on my-orders page or checkout, refresh view
-    if (window.location.pathname.includes('my-orders')) {
+    this.updateAdminFloatingBar();
+    if (window.location.pathname.includes('my-orders') || window.location.pathname.includes('admin-orders')) {
       window.location.reload();
     }
   },
@@ -109,37 +165,71 @@ const AuthEngine = {
   // Update navbar across any page
   updateNavbarAuthUI() {
     const user = this.getCurrentUser();
+    const isAdmin = this.isAdmin();
     const containers = document.querySelectorAll('.nav-auth-container');
     
     containers.forEach(container => {
       if (user) {
-        container.innerHTML = `
-          <div class="user-menu-dropdown">
-            <button class="btn btn-outline btn-sm user-menu-btn" onclick="toggleUserMenu(event)">
-              <i class="fa-solid fa-circle-user text-gold"></i>
-              <span>${this.escapeHtml(user.name.split(' ')[0])}</span>
-              <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
-            </button>
-            <div class="user-dropdown-panel" id="userDropdownPanel">
-              <div class="user-dropdown-header">
-                <strong>${this.escapeHtml(user.name)}</strong>
-                <small>${this.escapeHtml(user.email)}</small>
-              </div>
-              <a href="order-online.html" class="user-dropdown-item">
-                <i class="fa-solid fa-utensils"></i> Order Food
-              </a>
-              <a href="my-orders.html" class="user-dropdown-item">
-                <i class="fa-solid fa-box-open"></i> My Orders & Receipts
-              </a>
-              <a href="admin-orders.html" class="user-dropdown-item text-gold">
-                <i class="fa-solid fa-clipboard-list"></i> Kitchen Order Manager
-              </a>
-              <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;">
-                <i class="fa-solid fa-right-from-bracket"></i> Log Out
+        if (isAdmin) {
+          container.innerHTML = `
+            <div class="user-menu-dropdown">
+              <button class="btn btn-primary btn-sm user-menu-btn" style="background: linear-gradient(135deg, #b91c1c, #7f1d1d); border: 1px solid var(--gold-accent); box-shadow: 0 0 15px rgba(234, 179, 8, 0.35);" onclick="toggleUserMenu(event)">
+                <i class="fa-solid fa-crown text-gold"></i>
+                <span>Owner: ${this.escapeHtml(user.name.split(' ')[0])}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
               </button>
+              <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 270px;">
+                <div class="user-dropdown-header" style="background: rgba(234, 179, 8, 0.08); border-bottom: 1px solid rgba(234, 179, 8, 0.25);">
+                  <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-crown"></i> Restaurant Owner / Admin
+                  </div>
+                  <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
+                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
+                </div>
+                <a href="admin-orders.html" class="user-dropdown-item text-gold" style="font-weight: 700;">
+                  <i class="fa-solid fa-clipboard-list text-gold"></i> Kitchen Live Orders Terminal
+                </a>
+                <a href="order-online.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-utensils"></i> Customer Menu & Order
+                </a>
+                <a href="my-orders.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-box-open"></i> Customer Orders View
+                </a>
+                <button class="user-dropdown-item" onclick="openRegisteredUsersModal();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; color: var(--text-light);">
+                  <i class="fa-solid fa-users"></i> Registered Customers List
+                </button>
+                <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.08);">
+                  <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                </button>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          container.innerHTML = `
+            <div class="user-menu-dropdown">
+              <button class="btn btn-outline btn-sm user-menu-btn" onclick="toggleUserMenu(event)">
+                <i class="fa-solid fa-circle-user text-gold"></i>
+                <span>${this.escapeHtml(user.name.split(' ')[0])}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
+              </button>
+              <div class="user-dropdown-panel" id="userDropdownPanel">
+                <div class="user-dropdown-header">
+                  <strong>${this.escapeHtml(user.name)}</strong>
+                  <small>${this.escapeHtml(user.email)}</small>
+                </div>
+                <a href="order-online.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-utensils"></i> Order Food
+                </a>
+                <a href="my-orders.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-box-open"></i> My Orders & Receipts
+                </a>
+                <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;">
+                  <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                </button>
+              </div>
+            </div>
+          `;
+        }
       } else {
         container.innerHTML = `
           <button class="btn btn-outline btn-sm" onclick="openAuthModal('login');">
@@ -148,6 +238,39 @@ const AuthEngine = {
         `;
       }
     });
+
+    this.updateAdminFloatingBar();
+  },
+
+  // Floating admin quick bar at bottom-right of screen
+  updateAdminFloatingBar() {
+    let bar = document.getElementById('adminFloatingBar');
+    const isAdmin = this.isAdmin();
+
+    if (isAdmin) {
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'adminFloatingBar';
+        bar.className = 'admin-floating-bar';
+        document.body.appendChild(bar);
+      }
+
+      const orders = OrderEngine.getAllOrders();
+      const pendingCount = orders.filter(o => o.status === 'Pending').length;
+
+      bar.innerHTML = `
+        <span class="badge badge-gold" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          <i class="fa-solid fa-crown"></i> OWNER
+        </span>
+        <a href="admin-orders.html" class="admin-float-btn">
+          <i class="fa-solid fa-bell"></i> Kitchen Orders
+          <span class="admin-badge-count">${pendingCount}</span>
+        </a>
+      `;
+      bar.style.display = 'flex';
+    } else {
+      if (bar) bar.style.display = 'none';
+    }
   },
 
   escapeHtml(str) {
@@ -169,7 +292,36 @@ const OrderEngine = {
   getAllOrders() {
     try {
       const data = localStorage.getItem(ORDERS_STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
+      let orders = data ? JSON.parse(data) : [];
+
+      // If brand new, seed 1 initial pending order so admin can see it working immediately
+      if (orders.length === 0) {
+        orders = [
+          {
+            id: 'UR-2026-8492',
+            customerName: 'Tanvir Ahmed',
+            customerPhone: '01711-223344',
+            customerEmail: 'tanvir.ahmed@example.com',
+            userId: 'USR-SAMPLE-1',
+            deliveryAddress: 'House 18, Road 11, Gulshan-2, Dhaka',
+            orderNotes: 'Please deliver extra mint chutney and make biryani spicy.',
+            items: [
+              { id: 'bd-1', name: 'Kacchi Biryani', price: 780, qty: 2, itemTotal: 1560 },
+              { id: 'dr-1', name: 'Gulshan Crimson Sunset Mocktail', price: 320, qty: 2, itemTotal: 640 }
+            ],
+            subtotal: 2200,
+            deliveryFee: 0,
+            total: 2200,
+            paymentMethod: 'Cash on Delivery (COD)',
+            status: 'Pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+      }
+
+      return orders;
     } catch (e) {
       return [];
     }
@@ -178,6 +330,9 @@ const OrderEngine = {
   // Save full orders list
   saveOrders(orders) {
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    if (typeof AuthEngine !== 'undefined') {
+      AuthEngine.updateAdminFloatingBar();
+    }
   },
 
   // Place a new Cash on Delivery order
@@ -210,16 +365,15 @@ const OrderEngine = {
       deliveryFee: Number(deliveryFee),
       total: Number(total),
       paymentMethod: 'Cash on Delivery (COD)',
-      status: 'Pending', // 'Pending' -> 'Preparing' -> 'Out for Delivery' -> 'Delivered'
+      status: 'Pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     const orders = this.getAllOrders();
-    orders.unshift(newOrder); // Newest first
+    orders.unshift(newOrder);
     this.saveOrders(orders);
 
-    // Save/update user's default phone and address if logged in
     if (user) {
       user.phone = customerPhone.trim();
       user.address = deliveryAddress.trim();
@@ -299,7 +453,7 @@ function injectAuthModalDOM() {
             <i class="fa-solid fa-crown"></i>
           </div>
           <h3 id="authModalTitle" style="color: #fff; font-size: 1.5rem; margin-bottom: 0.25rem;">Log In to United Restaurant</h3>
-          <p id="authModalSubtitle" style="color: var(--text-muted); font-size: 0.88rem;">Access your saved orders and fast Cash on Delivery checkout</p>
+          <p id="authModalSubtitle" style="color: var(--text-muted); font-size: 0.88rem;">Access your saved orders, Cash on Delivery checkout, and owner powers</p>
         </div>
 
         <!-- Auth Toggle Tabs -->
@@ -328,6 +482,20 @@ function injectAuthModalDOM() {
           <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
             <i class="fa-solid fa-check"></i> Sign In to Account
           </button>
+
+          <!-- Owner / Creator 1-Click Fill Helper -->
+          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.12); text-align: center;">
+            <div style="font-size: 0.78rem; color: var(--gold-accent); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 0.5rem;">
+              <i class="fa-solid fa-crown"></i> Website Creator & Restaurant Owner
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" style="width: 100%; border-color: rgba(234, 179, 8, 0.45); color: var(--gold-accent); font-size: 0.82rem; justify-content: center;" onclick="fillAdminCredentials();">
+              <i class="fa-solid fa-key text-gold"></i> Fill Owner Login (alxami.islam@gmail.com)
+            </button>
+            <div style="font-size: 0.74rem; color: var(--text-dim); margin-top: 0.35rem;">
+              Owner Default Pass: <code>admin123</code> (Instant Admin Powers)
+            </div>
+          </div>
+
           <div style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
             Don't have an account yet? 
             <a href="javascript:void(0)" onclick="switchAuthMode('signup');" style="color: var(--gold-accent); font-weight: 600;">Sign up free</a>
@@ -372,6 +540,16 @@ function injectAuthModalDOM() {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+// 1-Click fill for the creator / owner
+function fillAdminCredentials() {
+  switchAuthMode('login');
+  const emailEl = document.getElementById('loginEmail');
+  const passEl = document.getElementById('loginPassword');
+  if (emailEl) emailEl.value = 'alxami.islam@gmail.com';
+  if (passEl) passEl.value = 'admin123';
+  showAuthAlert('👑 Owner credentials loaded! Click "Sign In to Account" to activate Admin Powers.', true);
+}
+
 function openAuthModal(mode = 'login') {
   injectAuthModalDOM();
   switchAuthMode(mode);
@@ -408,7 +586,7 @@ function switchAuthMode(mode) {
     if (tabLogin) tabLogin.classList.add('active');
     if (tabSignup) tabSignup.classList.remove('active');
     if (title) title.textContent = 'Log In to United Restaurant';
-    if (subtitle) subtitle.textContent = 'Access your saved orders and fast Cash on Delivery checkout';
+    if (subtitle) subtitle.textContent = 'Access your saved orders, Cash on Delivery checkout, and owner powers';
   }
 }
 
@@ -427,14 +605,14 @@ function handleLoginSubmit(e) {
 
   try {
     const user = AuthEngine.login(email, pass);
-    showAuthAlert(`Welcome back, ${user.name}!`, true);
+    const isAdmin = AuthEngine.isAdmin();
+    showAuthAlert(`Welcome back, ${user.name}! ${isAdmin ? '👑 (Owner / Admin Powers Active)' : ''}`, true);
     setTimeout(() => {
       closeAuthModal();
-      // If order page, auto-fill fields
       if (typeof autofillOrderCustomerFields === 'function') {
         autofillOrderCustomerFields();
       }
-    }, 600);
+    }, 700);
   } catch (err) {
     showAuthAlert(err.message, false);
   }
@@ -450,13 +628,14 @@ function handleSignupSubmit(e) {
 
   try {
     const user = AuthEngine.signUp({ name, email, password: pass, phone, address });
-    showAuthAlert(`Account created successfully! Welcome, ${user.name}.`, true);
+    const isAdmin = AuthEngine.isAdmin();
+    showAuthAlert(`Account created successfully! Welcome, ${user.name}. ${isAdmin ? '👑 (Owner Powers Active)' : ''}`, true);
     setTimeout(() => {
       closeAuthModal();
       if (typeof autofillOrderCustomerFields === 'function') {
         autofillOrderCustomerFields();
       }
-    }, 700);
+    }, 800);
   } catch (err) {
     showAuthAlert(err.message, false);
   }
@@ -468,6 +647,69 @@ function toggleUserMenu(e) {
   if (panel) {
     panel.classList.toggle('show');
   }
+}
+
+// Modal for viewing registered customers (Admin only)
+function openRegisteredUsersModal() {
+  let modal = document.getElementById('registeredUsersModal');
+  if (!modal) {
+    const html = `
+      <div class="checkout-modal-backdrop" id="registeredUsersModal">
+        <div class="checkout-modal" style="max-width: 650px;">
+          <button class="checkout-close-btn" onclick="document.getElementById('registeredUsersModal').classList.remove('open');">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <div style="margin-bottom: 1.25rem;">
+            <span class="badge badge-gold"><i class="fa-solid fa-crown"></i> Admin Control</span>
+            <h3 style="color: #fff; font-size: 1.5rem; margin-top: 0.35rem;">Registered Customers Database</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem;">All customers who have registered on United Restaurant</p>
+          </div>
+          <div id="usersTableWrap" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    modal = document.getElementById('registeredUsersModal');
+  }
+
+  const users = AuthEngine.getUsers();
+  const wrap = document.getElementById('usersTableWrap');
+  if (wrap) {
+    let tableHtml = `
+      <table class="order-items-table" style="font-size: 0.85rem;">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Contact</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    users.forEach(u => {
+      tableHtml += `
+        <tr>
+          <td>
+            <strong style="color: #fff;">${AuthEngine.escapeHtml(u.name)}</strong>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">${AuthEngine.escapeHtml(u.address || 'No address')}</div>
+          </td>
+          <td>
+            <div>${AuthEngine.escapeHtml(u.email)}</div>
+            <div style="color: #4ade80;">${AuthEngine.escapeHtml(u.phone || 'N/A')}</div>
+          </td>
+          <td>
+            <span class="badge ${u.role === 'admin' ? 'badge-gold' : 'badge-red'}" style="font-size: 0.7rem;">
+              ${u.role === 'admin' ? '👑 OWNER' : 'CUSTOMER'}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+    tableHtml += `</tbody></table>`;
+    wrap.innerHTML = tableHtml;
+  }
+
+  modal.classList.add('open');
 }
 
 // Close dropdown when clicking outside

@@ -217,7 +217,10 @@
 
     // Check Auth on load
     document.addEventListener('DOMContentLoaded', () => {
-      if (sessionStorage.getItem('ur_admin_unlocked') === 'true') {
+      if (typeof AuthEngine !== 'undefined' && AuthEngine.isAdmin()) {
+        sessionStorage.setItem('ur_admin_unlocked', 'true');
+        showDashboard();
+      } else if (sessionStorage.getItem('ur_admin_unlocked') === 'true') {
         showDashboard();
       } else {
         showGate();
