@@ -9,11 +9,8 @@ const USERS_STORAGE_KEY = 'ur_registered_users';
 const ORDERS_STORAGE_KEY = 'ur_restaurant_orders';
 const RESTAURANT_WHATSAPP = '8801950177666'; // 01950-177666
 
-// Recognized Owner / Admin Emails with Super Admin Powers
-const ADMIN_EMAILS = [
-  'alxami.islam@gmail.com',
-  'admin@unitedrestaurant.com'
-];
+// Strictly hardcoded authorized Super Admin email
+const AUTHORIZED_ADMIN_EMAIL = 'alxami.islam@gmail.com';
 
 // ==========================================
 // 1. USER AUTHENTICATION API
@@ -30,10 +27,11 @@ const AuthEngine = {
     }
   },
 
-  // Check if currently logged in user has admin powers
+  // Check if currently logged in user is the authorized admin
   isAdmin() {
     const user = this.getCurrentUser();
-    return !!(user && (user.role === 'admin' || ADMIN_EMAILS.includes((user.email || '').toLowerCase())));
+    if (!user || !user.email) return false;
+    return (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
   },
 
   // Get all registered users from persistent storage
@@ -42,19 +40,37 @@ const AuthEngine = {
       let data = localStorage.getItem(USERS_STORAGE_KEY);
       let users = data ? JSON.parse(data) : [];
 
+      let modified = false;
+
+      // Strictly ensure only the authorized email has admin role
+      users.forEach(u => {
+        const isAuthAdmin = (u.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+        if (isAuthAdmin && u.role !== 'admin') {
+          u.role = 'admin';
+          modified = true;
+        } else if (!isAuthAdmin && u.role !== 'customer') {
+          u.role = 'customer';
+          modified = true;
+        }
+      });
+
       // Auto-seed Owner account if not already present
-      const ownerExists = users.some(u => u.email.toLowerCase() === 'alxami.islam@gmail.com');
+      const ownerExists = users.some(u => (u.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL);
       if (!ownerExists) {
         users.unshift({
           id: 'USR-OWNER-001',
           name: 'Al Sami Islam (Owner)',
-          email: 'alxami.islam@gmail.com',
-          password: 'admin123', // Default owner password
+          email: AUTHORIZED_ADMIN_EMAIL,
+          password: 'admin123', // Initial owner password
           phone: '01950-177666',
           address: 'United City, Gulshan-2, Dhaka',
           role: 'admin',
           createdAt: new Date().toISOString()
         });
+        modified = true;
+      }
+
+      if (modified) {
         localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
       }
 
@@ -77,15 +93,15 @@ const AuthEngine = {
     if (!phone) throw new Error('Please enter your phone number.');
 
     const users = this.getUsers();
-    const existingIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    const existingIndex = users.findIndex(u => (u.email || '').toLowerCase() === email);
 
-    const isOwnerEmail = ADMIN_EMAILS.includes(email.toLowerCase());
-    const role = isOwnerEmail ? 'admin' : 'customer';
+    const isOwner = email === AUTHORIZED_ADMIN_EMAIL;
+    const role = isOwner ? 'admin' : 'customer';
 
     let userObj;
     if (existingIndex >= 0) {
-      // If owner is re-registering with their own chosen password, update it
-      if (isOwnerEmail) {
+      // If the authorized owner is re-registering, allow updating credentials
+      if (isOwner) {
         users[existingIndex].password = password;
         users[existingIndex].name = name;
         users[existingIndex].phone = phone;
@@ -97,7 +113,7 @@ const AuthEngine = {
       }
     } else {
       userObj = {
-        id: isOwnerEmail ? 'USR-OWNER-' + Date.now().toString(36).toUpperCase() : 'USR-' + Date.now().toString(36).toUpperCase(),
+        id: isOwner ? 'USR-OWNER-' + Date.now().toString(36).toUpperCase() : 'USR-' + Date.now().toString(36).toUpperCase(),
         name,
         email,
         password,
@@ -122,16 +138,19 @@ const AuthEngine = {
     if (!email || !password) throw new Error('Please enter both email and password.');
 
     const users = this.getUsers();
-    let user = users.find(u => u.email.toLowerCase() === email && u.password === password);
-
-    // If owner email matches, make sure role is admin
-    if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-      user.role = 'admin';
-      sessionStorage.setItem('ur_admin_unlocked', 'true');
-    }
+    let user = users.find(u => (u.email || '').toLowerCase() === email && u.password === password);
 
     if (!user) {
-      throw new Error('Invalid email or password. Please verify or use the Owner 1-click button.');
+      throw new Error('Invalid email or password. Please verify your credentials.');
+    }
+
+    const isOwner = (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+    user.role = isOwner ? 'admin' : 'customer';
+
+    if (isOwner) {
+      sessionStorage.setItem('ur_admin_unlocked', 'true');
+    } else {
+      sessionStorage.removeItem('ur_admin_unlocked');
     }
 
     this.setCurrentUser(user);
@@ -142,10 +161,15 @@ const AuthEngine = {
   setCurrentUser(user) {
     const safeUser = { ...user };
     delete safeUser.password;
-    if (ADMIN_EMAILS.includes((safeUser.email || '').toLowerCase())) {
-      safeUser.role = 'admin';
+    const isOwner = (safeUser.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+    safeUser.role = isOwner ? 'admin' : 'customer';
+
+    if (isOwner) {
       sessionStorage.setItem('ur_admin_unlocked', 'true');
+    } else {
+      sessionStorage.removeItem('ur_admin_unlocked');
     }
+
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safeUser));
     this.updateNavbarAuthUI();
     this.updateAdminFloatingBar();
@@ -454,7 +478,7 @@ function injectAuthModalDOM() {
             <i class="fa-solid fa-crown"></i>
           </div>
           <h3 id="authModalTitle" style="color: #fff; font-size: 1.5rem; margin-bottom: 0.25rem;">Log In to United Restaurant</h3>
-          <p id="authModalSubtitle" style="color: var(--text-muted); font-size: 0.88rem;">Access your saved orders, Cash on Delivery checkout, and owner powers</p>
+          <p id="authModalSubtitle" style="color: var(--text-muted); font-size: 0.88rem;">Access your saved orders, live order tracking, and Cash on Delivery checkout</p>
         </div>
 
         <!-- Auth Toggle Tabs -->
@@ -484,20 +508,7 @@ function injectAuthModalDOM() {
             <i class="fa-solid fa-check"></i> Sign In to Account
           </button>
 
-          <!-- Owner / Creator 1-Click Fill Helper -->
-          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.12); text-align: center;">
-            <div style="font-size: 0.78rem; color: var(--gold-accent); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 0.5rem;">
-              <i class="fa-solid fa-crown"></i> Website Creator & Restaurant Owner
-            </div>
-            <button type="button" class="btn btn-outline btn-sm" style="width: 100%; border-color: rgba(234, 179, 8, 0.45); color: var(--gold-accent); font-size: 0.82rem; justify-content: center;" onclick="fillAdminCredentials();">
-              <i class="fa-solid fa-key text-gold"></i> Fill Owner Login (alxami.islam@gmail.com)
-            </button>
-            <div style="font-size: 0.74rem; color: var(--text-dim); margin-top: 0.35rem;">
-              Owner Default Pass: <code>admin123</code> (Instant Admin Powers)
-            </div>
-          </div>
-
-          <div style="text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted);">
+          <div style="text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
             Don't have an account yet? 
             <a href="javascript:void(0)" onclick="switchAuthMode('signup');" style="color: var(--gold-accent); font-weight: 600;">Sign up free</a>
           </div>
@@ -507,11 +518,11 @@ function injectAuthModalDOM() {
         <form id="formSignup" onsubmit="handleSignupSubmit(event);" style="display: none;">
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-user"></i> Full Name</label>
-            <input type="text" id="signupName" class="form-control" placeholder="e.g. Al Sami Islam" required>
+            <input type="text" id="signupName" class="form-control" placeholder="e.g. Your Full Name" required>
           </div>
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Email Address</label>
-            <input type="email" id="signupEmail" class="form-control" placeholder="e.g. alxami.islam@gmail.com" required>
+            <input type="email" id="signupEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
           </div>
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-phone"></i> Phone Number (WhatsApp)</label>
@@ -539,16 +550,6 @@ function injectAuthModalDOM() {
   `;
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-// 1-Click fill for the creator / owner
-function fillAdminCredentials() {
-  switchAuthMode('login');
-  const emailEl = document.getElementById('loginEmail');
-  const passEl = document.getElementById('loginPassword');
-  if (emailEl) emailEl.value = 'alxami.islam@gmail.com';
-  if (passEl) passEl.value = 'admin123';
-  showAuthAlert('👑 Owner credentials loaded! Click "Sign In to Account" to activate Admin Powers.', true);
 }
 
 function openAuthModal(mode = 'login') {
@@ -587,7 +588,7 @@ function switchAuthMode(mode) {
     if (tabLogin) tabLogin.classList.add('active');
     if (tabSignup) tabSignup.classList.remove('active');
     if (title) title.textContent = 'Log In to United Restaurant';
-    if (subtitle) subtitle.textContent = 'Access your saved orders, Cash on Delivery checkout, and owner powers';
+    if (subtitle) subtitle.textContent = 'Access your saved orders, live order tracking, and Cash on Delivery checkout';
   }
 }
 
@@ -607,11 +608,14 @@ function handleLoginSubmit(e) {
   try {
     const user = AuthEngine.login(email, pass);
     const isAdmin = AuthEngine.isAdmin();
-    showAuthAlert(`Welcome back, ${user.name}! ${isAdmin ? '👑 (Owner / Admin Powers Active)' : ''}`, true);
+    showAuthAlert(`Welcome back, ${user.name}! ${isAdmin ? '👑 (Admin Access Granted)' : ''}`, true);
     setTimeout(() => {
       closeAuthModal();
       if (typeof autofillOrderCustomerFields === 'function') {
         autofillOrderCustomerFields();
+      }
+      if (window.location.pathname.includes('admin-orders')) {
+        window.location.reload();
       }
     }, 700);
   } catch (err) {
@@ -630,11 +634,14 @@ function handleSignupSubmit(e) {
   try {
     const user = AuthEngine.signUp({ name, email, password: pass, phone, address });
     const isAdmin = AuthEngine.isAdmin();
-    showAuthAlert(`Account created successfully! Welcome, ${user.name}. ${isAdmin ? '👑 (Owner Powers Active)' : ''}`, true);
+    showAuthAlert(`Account created successfully! Welcome, ${user.name}. ${isAdmin ? '👑 (Admin Access Granted)' : ''}`, true);
     setTimeout(() => {
       closeAuthModal();
       if (typeof autofillOrderCustomerFields === 'function') {
         autofillOrderCustomerFields();
+      }
+      if (window.location.pathname.includes('admin-orders')) {
+        window.location.reload();
       }
     }, 800);
   } catch (err) {
@@ -652,6 +659,10 @@ function toggleUserMenu(e) {
 
 // Modal for viewing registered customers (Admin only)
 function openRegisteredUsersModal() {
+  if (!AuthEngine.isAdmin()) {
+    alert('Access Denied: Only the authorized restaurant owner (alxami.islam@gmail.com) can access this customer database.');
+    return;
+  }
   let modal = document.getElementById('registeredUsersModal');
   if (!modal) {
     const html = `

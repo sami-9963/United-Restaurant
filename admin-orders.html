@@ -94,27 +94,37 @@
     </div>
   </header>
 
-  <!-- Passcode Login Screen (shown if not logged into admin) -->
+  <!-- Passcode / Login Gate Screen (shown if not logged in as authorized admin) -->
   <section id="adminGateScreen" class="section-padding" style="display: none; min-height: 70vh; align-items: center; justify-content: center;">
-    <div class="container" style="max-width: 440px;">
+    <div class="container" style="max-width: 460px;">
       <div style="background: var(--bg-card); border: 1px solid var(--border-red); border-radius: 16px; padding: 2.5rem; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
         <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(220,38,38,0.15); border: 2px solid var(--red-primary); color: var(--red-primary); font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
           <i class="fa-solid fa-lock"></i>
         </div>
         <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 0.5rem;">Kitchen Manager Access</h3>
-        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem;">
-          Enter the United Restaurant management passcode to view and manage live incoming Cash on Delivery orders.
+        <p id="adminGateMsg" style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; line-height: 1.5;">
+          This terminal is restricted. Log in with the authorized restaurant owner email (<strong>alxami.islam@gmail.com</strong>) to access live orders.
+        </p>
+
+        <div style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="openAuthModal('login');">
+            <i class="fa-solid fa-crown text-gold"></i> Log In as Authorized Admin
+          </button>
+        </div>
+
+        <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.75rem;">
+          Or enter kitchen manager passcode:
         </p>
 
         <form onsubmit="handleAdminUnlock(event);">
           <div class="form-group" style="margin-bottom: 1.25rem;">
-            <input type="password" id="adminPasscode" class="form-control" placeholder="Enter Manager Passcode" style="text-align: center; font-size: 1.1rem; letter-spacing: 2px;" required autofocus>
+            <input type="password" id="adminPasscode" class="form-control" placeholder="Enter Manager Passcode" style="text-align: center; font-size: 1.1rem; letter-spacing: 2px;" required>
           </div>
           <div id="gateErrorMsg" style="color: #f87171; font-size: 0.85rem; margin-bottom: 1rem; display: none;">
-            Incorrect passcode. (Default: <code>united2026</code>)
+            Incorrect passcode. Please try again.
           </div>
-          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-            <i class="fa-solid fa-key"></i> Unlock Dashboard
+          <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center;">
+            <i class="fa-solid fa-key"></i> Unlock Terminal
           </button>
         </form>
         <div style="margin-top: 1.25rem; font-size: 0.8rem; color: var(--text-dim);">
@@ -217,17 +227,32 @@
 
     // Check Auth on load
     document.addEventListener('DOMContentLoaded', () => {
-      if (typeof AuthEngine !== 'undefined' && AuthEngine.isAdmin()) {
+      checkAdminAccess();
+      // Periodic check for new orders every 5s
+      setInterval(pollOrders, 5000);
+    });
+
+    function checkAdminAccess() {
+      const currentUser = typeof AuthEngine !== 'undefined' ? AuthEngine.getCurrentUser() : null;
+      const isAdmin = typeof AuthEngine !== 'undefined' && AuthEngine.isAdmin();
+
+      if (isAdmin) {
         sessionStorage.setItem('ur_admin_unlocked', 'true');
         showDashboard();
+      } else if (currentUser && !isAdmin) {
+        // A standard user is logged in: strictly lock and revoke admin session
+        sessionStorage.removeItem('ur_admin_unlocked');
+        showGate();
+        const msgEl = document.getElementById('adminGateMsg');
+        if (msgEl) {
+          msgEl.innerHTML = `You are logged in as <strong style="color: #fff;">${AuthEngine.escapeHtml(currentUser.email)}</strong> (Standard User).<br><span style="color: #f87171;">You do not have admin rights.</span> Access is strictly reserved for the authorized restaurant owner (<strong>alxami.islam@gmail.com</strong>).`;
+        }
       } else if (sessionStorage.getItem('ur_admin_unlocked') === 'true') {
         showDashboard();
       } else {
         showGate();
       }
-      // Periodic check for new orders every 5s
-      setInterval(pollOrders, 5000);
-    });
+    }
 
     function showGate() {
       document.getElementById('adminGateScreen').style.display = 'flex';
