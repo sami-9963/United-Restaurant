@@ -1,29 +1,35 @@
 /**
- * United Restaurant - Google Firebase Cloud Integration (Optional)
- * 
- * TO CONNECT REAL GOOGLE FIREBASE CLOUD DATABASE & AUTH:
- * 1. Go to https://console.firebase.google.com and click "Add Project"
- * 2. Name your project "United-Restaurant"
- * 3. In the project dashboard, click the Web icon (</>) to register a Web app
- * 4. Enable "Authentication" -> Email/Password & Google Sign-In
- * 5. Enable "Firestore Database" in test/production mode
- * 6. Copy your config keys and replace the values below:
+ * United Restaurant - Google Firebase Cloud Integration
+ * Project: United-Restaurant (united-restaurant-73d22)
+ * Live Realtime Cloud Firestore Database & Cloud Sync
  */
 
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBWpm-9WoB0CQ__vi08Ejw-bM6WlojjLNE",
+  authDomain: "united-restaurant-73d22.firebaseapp.com",
+  projectId: "united-restaurant-73d22",
+  storageBucket: "united-restaurant-73d22.firebasestorage.app",
+  messagingSenderId: "242267323436",
+  appId: "1:242267323436:web:5b43def154ed4112e9a589",
+  measurementId: "G-HS04X8QSPN"
 };
 
-// Check if Firebase keys have been configured by the owner
-const IS_FIREBASE_ACTIVE = FIREBASE_CONFIG.apiKey !== "YOUR_FIREBASE_API_KEY";
+let urDb = null;
+let isFirebaseActive = false;
 
-if (IS_FIREBASE_ACTIVE) {
-  console.log("🔥 United Restaurant: Google Firebase Cloud connected successfully.");
-} else {
-  console.log("⚡ United Restaurant: Running in high-performance local persistent mode with real Cash on Delivery order storage & WhatsApp dispatch.");
+try {
+  if (typeof firebase !== 'undefined') {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
+    urDb = firebase.firestore();
+    isFirebaseActive = true;
+    console.log("🔥 United Restaurant: Google Firebase Cloud connected successfully! (Project: united-restaurant-73d22)");
+  }
+} catch (e) {
+  console.warn("Firebase initialization note:", e);
 }
+
+window.FIREBASE_CONFIG = FIREBASE_CONFIG;
+window.urDb = urDb;
+window.isFirebaseActive = isFirebaseActive;

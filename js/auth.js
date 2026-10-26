@@ -80,6 +80,28 @@ const AuthEngine = {
     }
   },
 
+  // Merge registered users from Google Cloud Firestore
+  mergeCloudUsers(cloudUsers) {
+    if (!Array.isArray(cloudUsers) || cloudUsers.length === 0) return this.getUsers();
+    try {
+      const currentUsers = this.getUsers();
+      const map = new Map();
+      currentUsers.forEach(u => { if (u && u.email) map.set(u.email.toLowerCase(), u); });
+      cloudUsers.forEach(cu => {
+        if (cu && cu.email) {
+          const key = cu.email.toLowerCase();
+          const isAuthAdmin = key === AUTHORIZED_ADMIN_EMAIL;
+          map.set(key, { ...(map.get(key) || {}), ...cu, role: isAuthAdmin ? 'admin' : 'customer' });
+        }
+      });
+      const merged = Array.from(map.values());
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    } catch (e) {
+      return this.getUsers();
+    }
+  },
+
   // Sign up new user
   signUp({ name, email, password, phone = '', address = '' }) {
     name = (name || '').trim();
@@ -126,6 +148,14 @@ const AuthEngine = {
     }
 
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+    // Sync user profile to Google Cloud Firestore
+    if (window.urDb) {
+      const safeCloudUser = { ...userObj };
+      window.urDb.collection('users').doc(userObj.id).set(safeCloudUser)
+        .then(() => console.log('🔥 User profile synced to Google Cloud Firestore:', userObj.email))
+        .catch(err => console.warn('Cloud user sync note:', err.message));
+    }
 
     // Auto-login after signup
     this.setCurrentUser(userObj);
@@ -399,6 +429,13 @@ const OrderEngine = {
     orders.unshift(newOrder);
     this.saveOrders(orders);
 
+    // Sync new Cash on Delivery order to Google Cloud Firestore in real time
+    if (window.urDb) {
+      window.urDb.collection('orders').doc(newOrder.id).set(newOrder)
+        .then(() => console.log('🔥 Order synced to Cloud Firestore in real time:', newOrder.id))
+        .catch(err => console.warn('Cloud order sync note:', err.message));
+    }
+
     if (user) {
       user.phone = customerPhone.trim();
       user.address = deliveryAddress.trim();
@@ -406,6 +443,26 @@ const OrderEngine = {
     }
 
     return newOrder;
+  },
+
+  // Merge orders synced from Google Cloud Firestore
+  mergeCloudOrders(cloudOrders) {
+    if (!Array.isArray(cloudOrders) || cloudOrders.length === 0) return this.getAllOrders();
+    try {
+      const currentOrders = this.getAllOrders();
+      const map = new Map();
+      currentOrders.forEach(o => { if (o && o.id) map.set(o.id, o); });
+      cloudOrders.forEach(co => {
+        if (co && co.id) {
+          map.set(co.id, { ...(map.get(co.id) || {}), ...co });
+        }
+      });
+      const merged = Array.from(map.values()).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      this.saveOrders(merged);
+      return merged;
+    } catch (e) {
+      return this.getAllOrders();
+    }
   },
 
   // Get orders placed by a specific user
@@ -427,6 +484,16 @@ const OrderEngine = {
       order.status = newStatus;
       order.updatedAt = new Date().toISOString();
       this.saveOrders(orders);
+
+      // Sync status change to Google Cloud Firestore
+      if (window.urDb) {
+        window.urDb.collection('orders').doc(orderId).update({
+          status: newStatus,
+          updatedAt: order.updatedAt
+        }).then(() => console.log('🔥 Status updated in Cloud Firestore:', orderId, newStatus))
+          .catch(err => console.warn('Cloud status update note:', err.message));
+      }
+
       return order;
     }
     return null;
@@ -732,8 +799,46 @@ document.addEventListener('click', () => {
   }
 });
 
+// Real-time synchronization with Google Cloud Firestore
+function initFirebaseSync() {
+  if (!window.urDb) return;
+
+  try {
+    // 1. Real-time listener for incoming & updated orders
+    window.urDb.collection('orders').onSnapshot(snapshot => {
+      const cloudOrders = [];
+      snapshot.forEach(doc => cloudOrders.push(doc.data()));
+      if (cloudOrders.length > 0) {
+        OrderEngine.mergeCloudOrders(cloudOrders);
+        if (typeof renderAdminDashboard === 'function') {
+          renderAdminDashboard();
+        }
+        if (typeof displayFilteredOrders === 'function') {
+          displayFilteredOrders();
+        }
+      }
+    }, err => {
+      console.warn('Firestore orders sync notice:', err.message);
+    });
+
+    // 2. Sync registered customers
+    window.urDb.collection('users').get().then(snapshot => {
+      const cloudUsers = [];
+      snapshot.forEach(doc => cloudUsers.push(doc.data()));
+      if (cloudUsers.length > 0) {
+        AuthEngine.mergeCloudUsers(cloudUsers);
+      }
+    }).catch(err => {
+      console.warn('Firestore users sync notice:', err.message);
+    });
+  } catch (err) {
+    console.warn('Firestore sync error:', err);
+  }
+}
+
 // Auto-initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   injectAuthModalDOM();
   AuthEngine.updateNavbarAuthUI();
+  initFirebaseSync();
 });
