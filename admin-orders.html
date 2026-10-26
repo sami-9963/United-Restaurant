@@ -434,13 +434,6 @@
         renderAdminDashboard();
       }
     }
-          const audio = document.getElementById('orderAlertAudio');
-          if (audio) audio.play().catch(() => {});
-        }
-      }
-      lastKnownOrderCount = orders.length;
-      renderAdminDashboard();
-    }
 
     function renderAdminDashboard() {
       const allOrders = OrderEngine.getAllOrders();
