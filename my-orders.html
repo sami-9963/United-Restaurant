@@ -182,13 +182,30 @@
   <!-- Google Firebase Cloud SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/main.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="js/firebase-config.js?v=2.2"></script>
+  <script src="js/main.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.2"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       renderMyOrders();
+
+      // Realtime listener for live order status updates
+      const listenOrders = () => {
+        if (!window.urDb) {
+          setTimeout(listenOrders, 300);
+          return;
+        }
+        window.urDb.collection('orders').onSnapshot(snapshot => {
+          const cloudOrders = [];
+          snapshot.forEach(doc => cloudOrders.push(doc.data()));
+          if (cloudOrders.length > 0) {
+            OrderEngine.mergeCloudOrders(cloudOrders);
+            displayFilteredOrders();
+          }
+        }, err => console.warn('Customer live orders note:', err));
+      };
+      listenOrders();
     });
 
     function renderMyOrders() {

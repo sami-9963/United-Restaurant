@@ -3,7 +3,7 @@
 [build]
   publish = "."
 
-# Custom HTTP Headers for Security and Performance
+# Security Headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -11,13 +11,32 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Cache static assets
+# HTML pages: always revalidate, never serve stale cache
 [[headers]]
-  for = "/css/*"
+  for = "/*.html"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
 
+# Root path: always revalidate
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# JavaScript files: always revalidate so real-time code updates are immediate
 [[headers]]
   for = "/js/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# Media images can be cached
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

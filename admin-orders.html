@@ -143,8 +143,16 @@
         <div>
           <span class="badge badge-red" style="margin-bottom: 0.35rem;">United City Kitchen Terminal</span>
           <h1 style="color: #fff; font-size: 1.8rem; margin: 0;">Live Orders & Dispatch</h1>
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-top: 0.35rem;">
+            <span id="liveCloudIndicator" style="font-size: 0.78rem; font-weight: 600; color: #22c55e; display: inline-flex; align-items: center;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; box-shadow: 0 0 8px #22c55e;"></span> Realtime Stream: Connecting...
+            </span>
+          </div>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="btnSyncCloud" onclick="forceRefreshOrders(this);" title="Force fresh fetch from Google Cloud (bypass cache)">
+            <i class="fa-solid fa-arrows-rotate"></i> Sync Cloud
+          </button>
           <button class="btn btn-outline btn-sm" id="btnAudioToggle" onclick="toggleAudioAlert();">
             <i class="fa-solid fa-volume-high"></i> Alert Sound: ON
           </button>
@@ -212,15 +220,17 @@
   <!-- Google Firebase Cloud SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/main.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="js/firebase-config.js?v=2.2"></script>
+  <script src="js/main.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.2"></script>
 
   <script>
     const ADMIN_PASSCODE = 'united2026';
     let currentFilter = 'all';
     let audioAlertEnabled = true;
     let lastKnownOrderCount = 0;
+    let unsubscribeFirestore = null;
+    let initialListenerDone = false;
 
     // Clock
     setInterval(() => {
@@ -232,8 +242,8 @@
     // Check Auth on load
     document.addEventListener('DOMContentLoaded', () => {
       checkAdminAccess();
-      // Periodic check for new orders every 5s
-      setInterval(pollOrders, 5000);
+      // Periodic fallback sync check every 6s
+      setInterval(pollOrders, 6000);
     });
 
     function checkAdminAccess() {
@@ -261,12 +271,112 @@
     function showGate() {
       document.getElementById('adminGateScreen').style.display = 'flex';
       document.getElementById('adminDashboardScreen').style.display = 'none';
+      if (unsubscribeFirestore) {
+        unsubscribeFirestore();
+        unsubscribeFirestore = null;
+      }
     }
 
     function showDashboard() {
       document.getElementById('adminGateScreen').style.display = 'none';
       document.getElementById('adminDashboardScreen').style.display = 'block';
       renderAdminDashboard();
+      startRealtimeOrdersListener();
+    }
+
+    // Google Cloud Firestore Real-time Listener (onSnapshot)
+    function startRealtimeOrdersListener() {
+      const connect = () => {
+        if (!window.urDb) {
+          setTimeout(connect, 300);
+          return;
+        }
+
+        if (unsubscribeFirestore) {
+          unsubscribeFirestore();
+        }
+
+        console.log("🔥 Kitchen Terminal: Connected to Google Cloud Firestore live stream.");
+        const liveIndicator = document.getElementById('liveCloudIndicator');
+        if (liveIndicator) {
+          liveIndicator.innerHTML = '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; box-shadow: 0 0 8px #22c55e;"></span> Realtime Stream: Active';
+          liveIndicator.style.color = '#22c55e';
+        }
+
+        unsubscribeFirestore = window.urDb.collection('orders')
+          .onSnapshot({ includeMetadataChanges: false }, (snapshot) => {
+            const cloudOrders = [];
+            let incomingNewOrder = false;
+
+            snapshot.docChanges().forEach(change => {
+              if (change.type === 'added' && initialListenerDone) {
+                incomingNewOrder = true;
+              }
+            });
+
+            snapshot.forEach(doc => {
+              cloudOrders.push(doc.data());
+            });
+
+            if (cloudOrders.length > 0) {
+              OrderEngine.mergeCloudOrders(cloudOrders);
+            }
+
+            // Sound chime immediately when a new order arrives live
+            if (incomingNewOrder && audioAlertEnabled) {
+              const audio = document.getElementById('orderAlertAudio');
+              if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log('Audio autoplay note:', e));
+              }
+            }
+
+            initialListenerDone = true;
+            renderAdminDashboard();
+          }, (err) => {
+            console.warn("Firestore live stream warning:", err);
+            const liveIndicator = document.getElementById('liveCloudIndicator');
+            if (liveIndicator) {
+              liveIndicator.innerHTML = '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #eab308; margin-right: 6px;"></span> Cloud: Connecting...';
+              liveIndicator.style.color = '#eab308';
+            }
+          });
+      };
+
+      connect();
+    }
+
+    // Force fresh data fetch from Google Cloud (bypasses all browser caching)
+    function forceRefreshOrders(btn) {
+      if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Syncing...';
+      }
+
+      if (window.urDb) {
+        window.urDb.collection('orders').get({ source: 'server' })
+          .then(snapshot => {
+            const cloudOrders = [];
+            snapshot.forEach(doc => cloudOrders.push(doc.data()));
+            if (cloudOrders.length > 0) {
+              OrderEngine.mergeCloudOrders(cloudOrders);
+            }
+            renderAdminDashboard();
+            if (btn) {
+              btn.innerHTML = '<i class="fa-solid fa-check text-gold"></i> Synced!';
+              setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud';
+              }, 1200);
+            }
+          })
+          .catch(err => {
+            console.warn('Direct server fetch notice:', err);
+            renderAdminDashboard();
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud';
+          });
+      } else {
+        renderAdminDashboard();
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud';
+      }
     }
 
     function handleAdminUnlock(e) {
@@ -307,9 +417,23 @@
 
     function pollOrders() {
       if (sessionStorage.getItem('ur_admin_unlocked') !== 'true') return;
-      const orders = OrderEngine.getAllOrders();
-      if (orders.length > lastKnownOrderCount && lastKnownOrderCount > 0) {
-        if (audioAlertEnabled) {
+      
+      // Fallback direct server fetch
+      if (window.urDb) {
+        window.urDb.collection('orders').get({ source: 'server' })
+          .then(snapshot => {
+            const cloudOrders = [];
+            snapshot.forEach(doc => cloudOrders.push(doc.data()));
+            if (cloudOrders.length > 0) {
+              OrderEngine.mergeCloudOrders(cloudOrders);
+              renderAdminDashboard();
+            }
+          })
+          .catch(() => renderAdminDashboard());
+      } else {
+        renderAdminDashboard();
+      }
+    }
           const audio = document.getElementById('orderAlertAudio');
           if (audio) audio.play().catch(() => {});
         }
