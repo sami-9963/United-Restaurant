@@ -294,6 +294,91 @@ const AuthEngine = {
       }
     });
 
+    // Update Mobile Navigation Menu Drawer (.nav-links)
+    const navMenus = document.querySelectorAll('.nav-links');
+    navMenus.forEach(navMenu => {
+      let authCard = navMenu.querySelector('.mobile-nav-auth-card');
+      if (!authCard) {
+        authCard = document.createElement('div');
+        authCard.className = 'mobile-nav-auth-card';
+        navMenu.appendChild(authCard);
+      }
+
+      if (user) {
+        if (isAdmin) {
+          authCard.innerHTML = `
+            <div class="mobile-owner-box">
+              <div class="mobile-owner-header">
+                <div class="mobile-owner-badge">
+                  <i class="fa-solid fa-crown text-gold"></i> RESTAURANT OWNER / ADMIN
+                </div>
+                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+              </div>
+
+              <div class="mobile-owner-links">
+                <a href="admin-orders.html" class="mobile-admin-btn gold-link">
+                  <i class="fa-solid fa-clipboard-list text-gold"></i>
+                  <span>Kitchen Live Orders Terminal</span>
+                </a>
+                <a href="order-online.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-utensils"></i>
+                  <span>Customer Menu & Order</span>
+                </a>
+                <a href="my-orders.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-box-open"></i>
+                  <span>Customer Orders View</span>
+                </a>
+                <button type="button" class="mobile-admin-btn" onclick="openRegisteredUsersModal();">
+                  <i class="fa-solid fa-users"></i>
+                  <span>Registered Customers List</span>
+                </button>
+              </div>
+
+              <button type="button" class="btn btn-outline mobile-nav-logout-btn" onclick="AuthEngine.logout();">
+                <i class="fa-solid fa-right-from-bracket"></i> Log Out
+              </button>
+            </div>
+          `;
+        } else {
+          authCard.innerHTML = `
+            <div class="mobile-owner-box mobile-customer-box">
+              <div class="mobile-owner-header">
+                <div class="mobile-owner-badge">
+                  <i class="fa-solid fa-circle-user text-gold"></i> CUSTOMER ACCOUNT
+                </div>
+                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+              </div>
+
+              <div class="mobile-owner-links">
+                <a href="order-online.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-utensils"></i>
+                  <span>Order Food</span>
+                </a>
+                <a href="my-orders.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-box-open"></i>
+                  <span>My Orders & Receipts</span>
+                </a>
+              </div>
+
+              <button type="button" class="btn btn-outline mobile-nav-logout-btn" onclick="AuthEngine.logout();">
+                <i class="fa-solid fa-right-from-bracket"></i> Log Out
+              </button>
+            </div>
+          `;
+        }
+      } else {
+        authCard.innerHTML = `
+          <div class="mobile-guest-box" style="padding-top: 0.5rem;">
+            <button type="button" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center; padding: 0.85rem;" onclick="openAuthModal('login');">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In / Sign Up
+            </button>
+          </div>
+        `;
+      }
+    });
+
     this.updateAdminFloatingBar();
   },
 

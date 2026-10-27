@@ -554,13 +554,14 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    padding: 2rem 1.75rem;
-    gap: 1.25rem;
+    padding: 1.75rem 1.75rem 5.5rem 1.75rem;
+    gap: 1.15rem;
     transform: translateX(-100%);
     visibility: hidden;
     pointer-events: none;
     transition: transform var(--transition-normal), visibility var(--transition-normal);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     border-top: 1px solid rgba(229, 9, 20, 0.2);
   }
 
@@ -581,7 +582,7 @@ h1, h2, h3, h4, h5, h6 {
     display: block;
   }
 
-  .nav-actions .btn-primary {
+  .nav-actions .btn-primary:not(.user-menu-btn) {
     display: none;
   }
 }
@@ -2718,6 +2719,128 @@ textarea.form-control {
   background: rgba(220, 38, 38, 0.15);
   color: #fff;
   padding-left: 1.25rem;
+}
+
+/* Mobile Drawer Auth & Admin Card */
+.mobile-nav-auth-card {
+  display: none;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .mobile-nav-auth-card {
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .mobile-owner-box {
+    background: linear-gradient(145deg, rgba(30, 10, 12, 0.95), rgba(15, 15, 20, 0.98));
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(234, 179, 8, 0.1);
+    width: 100%;
+  }
+
+  .mobile-customer-box {
+    border-color: rgba(220, 38, 38, 0.3);
+    background: linear-gradient(145deg, rgba(20, 15, 18, 0.95), rgba(15, 15, 20, 0.98));
+  }
+
+  .mobile-owner-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-owner-badge {
+    font-size: 0.72rem;
+    color: var(--gold-accent);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .mobile-owner-name {
+    display: block;
+    color: #fff;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-owner-email {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin-top: 0.15rem;
+    word-break: break-all;
+  }
+
+  .mobile-owner-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.15rem;
+  }
+
+  .mobile-admin-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .mobile-admin-btn.gold-link {
+    background: rgba(234, 179, 8, 0.1);
+    border-color: rgba(234, 179, 8, 0.35);
+    color: var(--gold-accent);
+    font-weight: 700;
+  }
+
+  .mobile-admin-btn:hover, .mobile-admin-btn:active {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: var(--red-primary);
+    color: #fff;
+  }
+
+  .mobile-nav-logout-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+    border-color: rgba(220, 38, 38, 0.5);
+    color: #f87171;
+    font-weight: 600;
+    font-size: 0.92rem;
+    background: rgba(220, 38, 38, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 8px;
+  }
+
+  .mobile-nav-logout-btn:hover, .mobile-nav-logout-btn:active {
+    background: #b91c1c;
+    color: #fff;
+    border-color: #b91c1c;
+  }
 }
 
 /* Auth Modal Specifics */

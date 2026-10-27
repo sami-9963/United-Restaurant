@@ -42,15 +42,14 @@ function initMobileNav() {
     document.body.style.overflow = isOpen ? 'hidden' : '';
   });
 
-  // Close when clicking a link
-  navLinks.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      if (navLinks.classList.contains('open')) {
-        navLinks.classList.remove('open');
-        toggleBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
-        document.body.style.overflow = '';
-      }
-    });
+  // Close when clicking any link or action button inside drawer
+  navLinks.addEventListener('click', (e) => {
+    const clickable = e.target.closest('a, button');
+    if (clickable && navLinks.classList.contains('open')) {
+      navLinks.classList.remove('open');
+      toggleBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+      document.body.style.overflow = '';
+    }
   });
 }
 
