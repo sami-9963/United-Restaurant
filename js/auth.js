@@ -31,7 +31,14 @@ const AuthEngine = {
   isAdmin() {
     const user = this.getCurrentUser();
     if (!user || !user.email) return false;
-    return (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+    return (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL || user.role === 'admin';
+  },
+
+  // Check if user has Staff or Admin privileges
+  isStaff() {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    return this.isAdmin() || user.role === 'staff';
   },
 
   // Get all registered users from persistent storage
@@ -45,12 +52,17 @@ const AuthEngine = {
       // Strictly ensure only the authorized email has admin role
       users.forEach(u => {
         const isAuthAdmin = (u.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
-        if (isAuthAdmin && u.role !== 'admin') {
-          u.role = 'admin';
-          modified = true;
-        } else if (!isAuthAdmin && u.role !== 'customer') {
-          u.role = 'customer';
-          modified = true;
+        if (isAuthAdmin) {
+          if (u.role !== 'admin') {
+            u.role = 'admin';
+            modified = true;
+          }
+        } else {
+          // Valid non-admin roles: 'staff' or 'customer'
+          if (u.role !== 'staff' && u.role !== 'customer') {
+            u.role = 'customer';
+            modified = true;
+          }
         }
       });
 
@@ -91,7 +103,10 @@ const AuthEngine = {
         if (cu && cu.email) {
           const key = cu.email.toLowerCase();
           const isAuthAdmin = key === AUTHORIZED_ADMIN_EMAIL;
-          map.set(key, { ...(map.get(key) || {}), ...cu, role: isAuthAdmin ? 'admin' : 'customer' });
+          const existing = map.get(key) || {};
+          // Preserve staff role if assigned in cloud
+          const role = isAuthAdmin ? 'admin' : (cu.role === 'staff' || existing.role === 'staff' ? 'staff' : (cu.role === 'admin' ? 'admin' : 'customer'));
+          map.set(key, { ...existing, ...cu, role });
         }
       });
       const merged = Array.from(map.values());
@@ -100,6 +115,95 @@ const AuthEngine = {
     } catch (e) {
       return this.getUsers();
     }
+  },
+
+  // Update user role (Admin only: promote to 'staff' or demote to 'customer')
+  updateUserRole(userId, newRole) {
+    if (!this.isAdmin()) {
+      throw new Error('Access Denied: Only the Restaurant Owner can modify roles.');
+    }
+    if (newRole !== 'customer' && newRole !== 'staff') {
+      throw new Error('Invalid role specified. Only "customer" or "staff" allowed.');
+    }
+
+    const users = this.getUsers();
+    const user = users.find(u => u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase()));
+    if (!user) throw new Error('User account not found.');
+
+    if ((user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL) {
+      throw new Error('The Restaurant Owner & Super Admin account cannot be modified.');
+    }
+
+    user.role = newRole;
+    user.updatedAt = new Date().toISOString();
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+    // Update active session if target user is currently logged in on this browser
+    const currentUser = this.getCurrentUser();
+    if (currentUser && ((currentUser.id && currentUser.id === user.id) || (currentUser.email && currentUser.email.toLowerCase() === user.email.toLowerCase()))) {
+      currentUser.role = newRole;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+      this.updateNavbarAuthUI();
+      this.updateAdminFloatingBar();
+    }
+
+    // Sync to Google Cloud Firestore
+    if (window.urDb) {
+      window.urDb.collection('users').doc(user.id).set({
+        role: newRole,
+        updatedAt: user.updatedAt
+      }, { merge: true })
+      .then(() => console.log('🔥 User role updated in Cloud Firestore:', user.email, '->', newRole))
+      .catch(err => console.warn('Cloud role update warning:', err.message));
+    }
+
+    return user;
+  },
+
+  // Customer Profile Editor: Update display name and contact info
+  updateProfile({ name, phone, address }) {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) throw new Error('You must be logged in to update your profile.');
+
+    name = (name || '').trim();
+    phone = (phone || '').trim();
+    address = (address || '').trim();
+
+    if (!name) throw new Error('Display Name is required.');
+    if (!phone) throw new Error('Contact Phone number is required.');
+
+    currentUser.name = name;
+    currentUser.phone = phone;
+    currentUser.address = address;
+    currentUser.updatedAt = new Date().toISOString();
+
+    // Update in persistent users list
+    const users = this.getUsers();
+    const idx = users.findIndex(u => (u.id && u.id === currentUser.id) || (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
+    if (idx >= 0) {
+      users[idx].name = name;
+      users[idx].phone = phone;
+      users[idx].address = address;
+      users[idx].updatedAt = currentUser.updatedAt;
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    this.updateNavbarAuthUI();
+
+    // Sync profile to Google Cloud Firestore
+    if (window.urDb) {
+      window.urDb.collection('users').doc(currentUser.id).set({
+        name,
+        phone,
+        address,
+        updatedAt: currentUser.updatedAt
+      }, { merge: true })
+      .then(() => console.log('🔥 Profile updated in Cloud Firestore:', currentUser.email))
+      .catch(err => console.warn('Cloud profile update notice:', err.message));
+    }
+
+    return currentUser;
   },
 
   // Sign up new user
@@ -175,12 +279,17 @@ const AuthEngine = {
     }
 
     const isOwner = (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
-    user.role = isOwner ? 'admin' : 'customer';
+    user.role = isOwner ? 'admin' : (user.role === 'staff' ? 'staff' : (user.role === 'admin' ? 'admin' : 'customer'));
 
     if (isOwner) {
       sessionStorage.setItem('ur_admin_unlocked', 'true');
+      sessionStorage.setItem('ur_staff_unlocked', 'true');
+    } else if (user.role === 'staff') {
+      sessionStorage.setItem('ur_staff_unlocked', 'true');
+      sessionStorage.removeItem('ur_admin_unlocked');
     } else {
       sessionStorage.removeItem('ur_admin_unlocked');
+      sessionStorage.removeItem('ur_staff_unlocked');
     }
 
     this.setCurrentUser(user);
@@ -192,12 +301,17 @@ const AuthEngine = {
     const safeUser = { ...user };
     delete safeUser.password;
     const isOwner = (safeUser.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
-    safeUser.role = isOwner ? 'admin' : 'customer';
+    safeUser.role = isOwner ? 'admin' : (safeUser.role === 'staff' ? 'staff' : (safeUser.role === 'admin' ? 'admin' : 'customer'));
 
     if (isOwner) {
       sessionStorage.setItem('ur_admin_unlocked', 'true');
+      sessionStorage.setItem('ur_staff_unlocked', 'true');
+    } else if (safeUser.role === 'staff') {
+      sessionStorage.setItem('ur_staff_unlocked', 'true');
+      sessionStorage.removeItem('ur_admin_unlocked');
     } else {
       sessionStorage.removeItem('ur_admin_unlocked');
+      sessionStorage.removeItem('ur_staff_unlocked');
     }
 
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safeUser));
@@ -209,9 +323,13 @@ const AuthEngine = {
   logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     sessionStorage.removeItem('ur_admin_unlocked');
+    sessionStorage.removeItem('ur_staff_unlocked');
     this.updateNavbarAuthUI();
     this.updateAdminFloatingBar();
-    if (window.location.pathname.includes('my-orders') || window.location.pathname.includes('admin-orders')) {
+    if (window.location.pathname.includes('my-orders') || 
+        window.location.pathname.includes('admin-orders') || 
+        window.location.pathname.includes('staff-dashboard') || 
+        window.location.pathname.includes('profile')) {
       window.location.reload();
     }
   },
@@ -220,6 +338,7 @@ const AuthEngine = {
   updateNavbarAuthUI() {
     const user = this.getCurrentUser();
     const isAdmin = this.isAdmin();
+    const isStaff = this.isStaff();
     const containers = document.querySelectorAll('.nav-auth-container');
     
     containers.forEach(container => {
@@ -232,7 +351,7 @@ const AuthEngine = {
                 <span class="nav-user-text">Owner: ${this.escapeHtml(user.name.split(' ')[0])}</span>
                 <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
-              <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 270px;">
+              <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 280px;">
                 <div class="user-dropdown-header" style="background: rgba(234, 179, 8, 0.08); border-bottom: 1px solid rgba(234, 179, 8, 0.25);">
                   <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
                     <i class="fa-solid fa-crown"></i> Restaurant Owner / Admin
@@ -243,15 +362,55 @@ const AuthEngine = {
                 <a href="admin-orders.html" class="user-dropdown-item text-gold" style="font-weight: 700;">
                   <i class="fa-solid fa-clipboard-list text-gold"></i> Kitchen Live Orders Terminal
                 </a>
+                <a href="admin-orders.html#users" class="user-dropdown-item" style="color: #c7d2fe; font-weight: 600;">
+                  <i class="fa-solid fa-users-gear text-gold"></i> User Management & Roles
+                </a>
+                <a href="admin-orders.html#menu" class="user-dropdown-item" style="color: #fde047;">
+                  <i class="fa-solid fa-pen-to-square text-gold"></i> Restaurant Menu Editor
+                </a>
+                <a href="profile.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-id-badge"></i> My Profile & Info
+                </a>
                 <a href="order-online.html" class="user-dropdown-item">
                   <i class="fa-solid fa-utensils"></i> Customer Menu & Order
                 </a>
                 <a href="my-orders.html" class="user-dropdown-item">
                   <i class="fa-solid fa-box-open"></i> Customer Orders View
                 </a>
-                <button class="user-dropdown-item" onclick="openRegisteredUsersModal();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; color: var(--text-light);">
-                  <i class="fa-solid fa-users"></i> Registered Customers List
+                <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.08);">
+                  <i class="fa-solid fa-right-from-bracket"></i> Log Out
                 </button>
+              </div>
+            </div>
+          `;
+        } else if (isStaff) {
+          container.innerHTML = `
+            <div class="user-menu-dropdown">
+              <button class="btn btn-outline btn-sm user-menu-btn" style="border-color: #6366f1; color: #c7d2fe; background: rgba(99, 102, 241, 0.1);" onclick="toggleUserMenu(event)">
+                <i class="fa-solid fa-shield-halved" style="color: #818cf8;"></i>
+                <span class="nav-user-text">Staff: ${this.escapeHtml(user.name.split(' ')[0])}</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
+              </button>
+              <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 270px;">
+                <div class="user-dropdown-header" style="background: rgba(99, 102, 241, 0.12); border-bottom: 1px solid rgba(99, 102, 241, 0.25);">
+                  <div style="font-size: 0.72rem; color: #818cf8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-shield-halved"></i> Kitchen Staff Account
+                  </div>
+                  <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
+                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
+                </div>
+                <a href="staff-dashboard.html" class="user-dropdown-item" style="color: #a5b4fc; font-weight: 700;">
+                  <i class="fa-solid fa-clipboard-check text-gold"></i> Kitchen Staff Dashboard
+                </a>
+                <a href="profile.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-id-badge"></i> My Profile & Info
+                </a>
+                <a href="order-online.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-utensils"></i> Order Food
+                </a>
+                <a href="my-orders.html" class="user-dropdown-item">
+                  <i class="fa-solid fa-box-open"></i> Customer Orders View
+                </a>
                 <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.08);">
                   <i class="fa-solid fa-right-from-bracket"></i> Log Out
                 </button>
@@ -259,6 +418,7 @@ const AuthEngine = {
             </div>
           `;
         } else {
+          // Standard Customer
           container.innerHTML = `
             <div class="user-menu-dropdown">
               <button class="btn btn-outline btn-sm user-menu-btn" onclick="toggleUserMenu(event)">
@@ -266,18 +426,24 @@ const AuthEngine = {
                 <span class="nav-user-text">${this.escapeHtml(user.name.split(' ')[0])}</span>
                 <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
-              <div class="user-dropdown-panel" id="userDropdownPanel">
+              <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 250px;">
                 <div class="user-dropdown-header">
-                  <strong>${this.escapeHtml(user.name)}</strong>
-                  <small>${this.escapeHtml(user.email)}</small>
+                  <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 700; text-transform: uppercase;">
+                    <i class="fa-solid fa-user"></i> Customer Profile
+                  </div>
+                  <strong style="color: #fff;">${this.escapeHtml(user.name)}</strong>
+                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
                 </div>
+                <a href="profile.html" class="user-dropdown-item" style="font-weight: 600;">
+                  <i class="fa-solid fa-id-badge text-gold"></i> My Profile & Contact
+                </a>
+                <a href="profile.html#orders" class="user-dropdown-item">
+                  <i class="fa-solid fa-clock-rotate-left"></i> My Order History
+                </a>
                 <a href="order-online.html" class="user-dropdown-item">
-                  <i class="fa-solid fa-utensils"></i> Order Food
+                  <i class="fa-solid fa-utensils"></i> Order Food Online
                 </a>
-                <a href="my-orders.html" class="user-dropdown-item">
-                  <i class="fa-solid fa-box-open"></i> My Orders & Receipts
-                </a>
-                <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;">
+                <button class="user-dropdown-item text-red" onclick="AuthEngine.logout();" style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.08);">
                   <i class="fa-solid fa-right-from-bracket"></i> Log Out
                 </button>
               </div>
@@ -321,6 +487,18 @@ const AuthEngine = {
                   <i class="fa-solid fa-clipboard-list text-gold"></i>
                   <span>Kitchen Live Orders Terminal</span>
                 </a>
+                <a href="admin-orders.html#users" class="mobile-admin-btn" style="color: #c7d2fe;">
+                  <i class="fa-solid fa-users-gear text-gold"></i>
+                  <span>User Management & Roles</span>
+                </a>
+                <a href="admin-orders.html#menu" class="mobile-admin-btn" style="color: #fde047;">
+                  <i class="fa-solid fa-pen-to-square text-gold"></i>
+                  <span>Restaurant Menu Editor</span>
+                </a>
+                <a href="profile.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-id-badge"></i>
+                  <span>My Profile & Info</span>
+                </a>
                 <a href="order-online.html" class="mobile-admin-btn">
                   <i class="fa-solid fa-utensils"></i>
                   <span>Customer Menu & Order</span>
@@ -329,10 +507,41 @@ const AuthEngine = {
                   <i class="fa-solid fa-box-open"></i>
                   <span>Customer Orders View</span>
                 </a>
-                <button type="button" class="mobile-admin-btn" onclick="openRegisteredUsersModal();">
-                  <i class="fa-solid fa-users"></i>
-                  <span>Registered Customers List</span>
-                </button>
+              </div>
+
+              <button type="button" class="btn btn-outline mobile-nav-logout-btn" onclick="AuthEngine.logout();">
+                <i class="fa-solid fa-right-from-bracket"></i> Log Out
+              </button>
+            </div>
+          `;
+        } else if (isStaff) {
+          authCard.innerHTML = `
+            <div class="mobile-owner-box mobile-staff-box">
+              <div class="mobile-owner-header">
+                <div class="mobile-owner-badge mobile-staff-badge">
+                  <i class="fa-solid fa-shield-halved"></i> KITCHEN STAFF ACCOUNT
+                </div>
+                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+              </div>
+
+              <div class="mobile-owner-links">
+                <a href="staff-dashboard.html" class="mobile-admin-btn staff-link">
+                  <i class="fa-solid fa-clipboard-check text-gold"></i>
+                  <span>Kitchen Staff Terminal</span>
+                </a>
+                <a href="profile.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-id-badge"></i>
+                  <span>My Profile & Info</span>
+                </a>
+                <a href="order-online.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-utensils"></i>
+                  <span>Customer Menu & Order</span>
+                </a>
+                <a href="my-orders.html" class="mobile-admin-btn">
+                  <i class="fa-solid fa-box-open"></i>
+                  <span>Customer Orders View</span>
+                </a>
               </div>
 
               <button type="button" class="btn btn-outline mobile-nav-logout-btn" onclick="AuthEngine.logout();">
@@ -341,6 +550,7 @@ const AuthEngine = {
             </div>
           `;
         } else {
+          // Standard Customer Mobile Card
           authCard.innerHTML = `
             <div class="mobile-owner-box mobile-customer-box">
               <div class="mobile-owner-header">
@@ -352,13 +562,17 @@ const AuthEngine = {
               </div>
 
               <div class="mobile-owner-links">
+                <a href="profile.html" class="mobile-admin-btn gold-link">
+                  <i class="fa-solid fa-id-badge text-gold"></i>
+                  <span>My Profile & Contact</span>
+                </a>
+                <a href="profile.html#orders" class="mobile-admin-btn">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span>My Order History</span>
+                </a>
                 <a href="order-online.html" class="mobile-admin-btn">
                   <i class="fa-solid fa-utensils"></i>
-                  <span>Order Food</span>
-                </a>
-                <a href="my-orders.html" class="mobile-admin-btn">
-                  <i class="fa-solid fa-box-open"></i>
-                  <span>My Orders & Receipts</span>
+                  <span>Browse Menu & Order</span>
                 </a>
               </div>
 
@@ -382,10 +596,11 @@ const AuthEngine = {
     this.updateAdminFloatingBar();
   },
 
-  // Floating admin quick bar at bottom-right of screen
+  // Floating admin & staff quick bar at bottom-right of screen
   updateAdminFloatingBar() {
     let bar = document.getElementById('adminFloatingBar');
     const isAdmin = this.isAdmin();
+    const isStaff = this.isStaff();
 
     if (isAdmin) {
       if (!bar) {
@@ -404,6 +619,27 @@ const AuthEngine = {
         </span>
         <a href="admin-orders.html" class="admin-float-btn">
           <i class="fa-solid fa-bell"></i> Kitchen Orders
+          <span class="admin-badge-count">${pendingCount}</span>
+        </a>
+      `;
+      bar.style.display = 'flex';
+    } else if (isStaff) {
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'adminFloatingBar';
+        bar.className = 'admin-floating-bar';
+        document.body.appendChild(bar);
+      }
+
+      const orders = OrderEngine.getAllOrders();
+      const pendingCount = orders.filter(o => o.status === 'Pending').length;
+
+      bar.innerHTML = `
+        <span class="badge badge-staff" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
+          <i class="fa-solid fa-shield-halved"></i> STAFF
+        </span>
+        <a href="staff-dashboard.html" class="admin-float-btn" style="background: rgba(99, 102, 241, 0.2); border-color: #6366f1;">
+          <i class="fa-solid fa-bell"></i> Live Orders
           <span class="admin-badge-count">${pendingCount}</span>
         </a>
       `;
@@ -809,26 +1045,30 @@ function toggleUserMenu(e) {
   }
 }
 
-// Modal for viewing registered customers (Admin only)
+// Modal for viewing registered customers & roles (Admin only)
 function openRegisteredUsersModal() {
   if (!AuthEngine.isAdmin()) {
-    alert('Access Denied: Only the authorized restaurant owner (alxami.islam@gmail.com) can access this customer database.');
+    alert('Access Denied: Only the authorized restaurant owner (alxami.islam@gmail.com) can access this user database.');
     return;
   }
   let modal = document.getElementById('registeredUsersModal');
   if (!modal) {
     const html = `
       <div class="checkout-modal-backdrop" id="registeredUsersModal">
-        <div class="checkout-modal" style="max-width: 650px;">
+        <div class="checkout-modal" style="max-width: 780px;">
           <button class="checkout-close-btn" onclick="document.getElementById('registeredUsersModal').classList.remove('open');">
             <i class="fa-solid fa-xmark"></i>
           </button>
           <div style="margin-bottom: 1.25rem;">
             <span class="badge badge-gold"><i class="fa-solid fa-crown"></i> Admin Control</span>
-            <h3 style="color: #fff; font-size: 1.5rem; margin-top: 0.35rem;">Registered Customers Database</h3>
-            <p style="color: var(--text-muted); font-size: 0.88rem;">All customers who have registered on United Restaurant</p>
+            <h3 style="color: #fff; font-size: 1.5rem; margin-top: 0.35rem;">User Management & RBAC Roles</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem;">Manage Customer, Staff, and Owner permissions</p>
           </div>
-          <div id="usersTableWrap" style="max-height: 400px; overflow-y: auto;"></div>
+          <div style="margin-bottom: 1rem; position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+            <input type="text" id="modalUserSearch" class="form-control" placeholder="Search user by name, email, or phone..." style="padding-left: 2.5rem;" oninput="renderModalUsersList();">
+          </div>
+          <div id="usersTableWrap" style="max-height: 420px; overflow-y: auto;"></div>
         </div>
       </div>
     `;
@@ -836,41 +1076,183 @@ function openRegisteredUsersModal() {
     modal = document.getElementById('registeredUsersModal');
   }
 
+  renderModalUsersList();
+  modal.classList.add('open');
+}
+
+function renderModalUsersList() {
+  const query = (document.getElementById('modalUserSearch')?.value || '').toLowerCase().trim();
   const users = AuthEngine.getUsers();
   const wrap = document.getElementById('usersTableWrap');
-  if (wrap) {
-    let tableHtml = `
-      <table class="order-items-table" style="font-size: 0.85rem;">
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Contact</th>
-            <th>Role</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    users.forEach(u => {
+  if (!wrap) return;
+
+  const filtered = users.filter(u => 
+    !query || 
+    (u.name && u.name.toLowerCase().includes(query)) ||
+    (u.email && u.email.toLowerCase().includes(query)) ||
+    (u.phone && u.phone.includes(query)) ||
+    (u.role && u.role.toLowerCase().includes(query))
+  );
+
+  let tableHtml = `
+    <table class="rbac-user-table" style="font-size: 0.85rem;">
+      <thead>
+        <tr>
+          <th>User / Customer</th>
+          <th>Contact</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (filtered.length === 0) {
+    tableHtml += `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No users found matching "${query}".</td></tr>`;
+  } else {
+    filtered.forEach(u => {
+      const isOwner = (u.email || '').toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+      const role = isOwner ? 'admin' : (u.role || 'customer');
+      const orders = OrderEngine.getCustomerOrders(u.email || u.id);
+
       tableHtml += `
         <tr>
           <td>
             <strong style="color: #fff;">${AuthEngine.escapeHtml(u.name)}</strong>
-            <div style="color: var(--text-muted); font-size: 0.75rem;">${AuthEngine.escapeHtml(u.address || 'No address')}</div>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">${AuthEngine.escapeHtml(u.address || 'No address set')}</div>
           </td>
           <td>
-            <div>${AuthEngine.escapeHtml(u.email)}</div>
-            <div style="color: #4ade80;">${AuthEngine.escapeHtml(u.phone || 'N/A')}</div>
+            <div style="color: var(--text-light);">${AuthEngine.escapeHtml(u.email)}</div>
+            <div style="color: #4ade80; font-size: 0.78rem;">${AuthEngine.escapeHtml(u.phone || 'N/A')}</div>
           </td>
           <td>
-            <span class="badge ${u.role === 'admin' ? 'badge-gold' : 'badge-red'}" style="font-size: 0.7rem;">
-              ${u.role === 'admin' ? '👑 OWNER' : 'CUSTOMER'}
+            <span class="role-pill ${role}">
+              ${role === 'admin' ? '<i class="fa-solid fa-crown text-gold"></i> OWNER' : (role === 'staff' ? '<i class="fa-solid fa-shield-halved"></i> STAFF' : '<i class="fa-solid fa-user"></i> CUSTOMER')}
             </span>
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+              ${isOwner ? `
+                <span style="font-size: 0.75rem; color: var(--gold-accent); font-weight: 700;">Owner (Protected)</span>
+              ` : (role === 'staff' ? `
+                <button type="button" class="btn-demote" onclick="handleRoleChange('${u.id}', 'customer');" title="Demote to Customer">
+                  <i class="fa-solid fa-arrow-down"></i> Demote
+                </button>
+              ` : `
+                <button type="button" class="btn-promote" onclick="handleRoleChange('${u.id}', 'staff');" title="Promote to Kitchen Staff">
+                  <i class="fa-solid fa-arrow-up"></i> Promote Staff
+                </button>
+              `)}
+              <button type="button" class="btn btn-outline btn-sm" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;" onclick="viewUserOrdersModal('${u.email || u.id}', '${AuthEngine.escapeHtml(u.name)}');" title="View complete order history">
+                <i class="fa-solid fa-receipt"></i> Orders (${orders.length})
+              </button>
+            </div>
           </td>
         </tr>
       `;
     });
-    tableHtml += `</tbody></table>`;
-    wrap.innerHTML = tableHtml;
+  }
+
+  tableHtml += `</tbody></table>`;
+  wrap.innerHTML = tableHtml;
+}
+
+function handleRoleChange(userId, newRole) {
+  try {
+    const user = AuthEngine.updateUserRole(userId, newRole);
+    renderModalUsersList();
+    if (typeof renderUsersTab === 'function') {
+      renderUsersTab();
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// User Complete Order History Modal
+function viewUserOrdersModal(userEmailOrId, userName) {
+  const orders = OrderEngine.getCustomerOrders(userEmailOrId);
+  let modal = document.getElementById('userOrderHistoryModal');
+  if (!modal) {
+    const html = `
+      <div class="checkout-modal-backdrop" id="userOrderHistoryModal">
+        <div class="checkout-modal" style="max-width: 720px;">
+          <button class="checkout-close-btn" onclick="document.getElementById('userOrderHistoryModal').classList.remove('open');">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <div style="margin-bottom: 1.25rem;">
+            <span class="badge badge-gold"><i class="fa-solid fa-clock-rotate-left"></i> Customer Order History</span>
+            <h3 id="userOrdersModalTitle" style="color: #fff; font-size: 1.4rem; margin-top: 0.35rem;">Orders for Customer</h3>
+            <p id="userOrdersModalSubtitle" style="color: var(--text-muted); font-size: 0.85rem;"></p>
+          </div>
+          <div id="userOrdersModalFeed" style="max-height: 480px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    modal = document.getElementById('userOrderHistoryModal');
+  }
+
+  const titleEl = document.getElementById('userOrdersModalTitle');
+  const subEl = document.getElementById('userOrdersModalSubtitle');
+  const feed = document.getElementById('userOrdersModalFeed');
+
+  if (titleEl) titleEl.textContent = `Order History: ${userName}`;
+  if (subEl) subEl.textContent = `${orders.length} total orders found for ${userEmailOrId}`;
+
+  if (orders.length === 0) {
+    feed.innerHTML = `
+      <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+        <i class="fa-solid fa-receipt" style="font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--text-dim);"></i>
+        <h4 style="color: #fff;">No Orders Placed Yet</h4>
+        <p style="font-size: 0.85rem;">This customer hasn't placed any Cash on Delivery orders yet.</p>
+      </div>
+    `;
+  } else {
+    let html = '';
+    orders.forEach(order => {
+      const dateFormatted = new Date(order.createdAt).toLocaleString();
+      let statusClass = 'status-pending';
+      if (order.status === 'Preparing') statusClass = 'status-preparing';
+      else if (order.status === 'Out for Delivery') statusClass = 'status-onway';
+      else if (order.status === 'Delivered') statusClass = 'status-delivered';
+      else if (order.status === 'Cancelled') statusClass = 'status-cancelled';
+
+      html += `
+        <div class="order-card" style="margin-bottom: 1rem;">
+          <div class="order-card-header">
+            <div>
+              <span class="order-card-id">#${order.id}</span>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                <i class="fa-regular fa-calendar"></i> ${dateFormatted}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span class="status-badge ${statusClass}">${order.status}</span>
+              <div style="color: #4ade80; font-weight: 700; font-size: 1rem; margin-top: 0.25rem;">
+                ৳${order.total} (COD)
+              </div>
+            </div>
+          </div>
+          <div style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 0.6rem 0.85rem; margin-bottom: 0.6rem; font-size: 0.82rem;">
+            <strong>📍 Address:</strong> ${order.deliveryAddress || 'No address'}<br>
+            <strong>📞 Phone:</strong> ${order.customerPhone || 'N/A'}
+          </div>
+          <table class="order-items-table" style="font-size: 0.82rem;">
+            <tbody>
+              ${(order.items || []).map(it => `
+                <tr>
+                  <td><strong style="color: #fff;">${it.name}</strong></td>
+                  <td style="text-align: center; color: var(--gold-accent);">x${it.qty}</td>
+                  <td class="price-col">৳${it.itemTotal}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+    feed.innerHTML = html;
   }
 
   modal.classList.add('open');
@@ -898,23 +1280,65 @@ function initFirebaseSync() {
         if (typeof renderAdminDashboard === 'function') {
           renderAdminDashboard();
         }
+        if (typeof renderStaffDashboard === 'function') {
+          renderStaffDashboard();
+        }
         if (typeof displayFilteredOrders === 'function') {
           displayFilteredOrders();
+        }
+        if (typeof renderProfileOrderHistory === 'function') {
+          renderProfileOrderHistory();
         }
       }
     }, err => {
       console.warn('Firestore orders sync notice:', err.message);
     });
 
-    // 2. Sync registered customers
-    window.urDb.collection('users').get().then(snapshot => {
+    // 2. Real-time sync for registered users & RBAC roles
+    window.urDb.collection('users').onSnapshot(snapshot => {
       const cloudUsers = [];
       snapshot.forEach(doc => cloudUsers.push(doc.data()));
       if (cloudUsers.length > 0) {
         AuthEngine.mergeCloudUsers(cloudUsers);
+        
+        // Sync active user role if updated remotely
+        const cur = AuthEngine.getCurrentUser();
+        if (cur) {
+          const fresh = cloudUsers.find(u => (u.id && u.id === cur.id) || (u.email && u.email.toLowerCase() === cur.email.toLowerCase()));
+          if (fresh && fresh.role && fresh.role !== cur.role && cur.email.toLowerCase() !== AUTHORIZED_ADMIN_EMAIL) {
+            cur.role = fresh.role;
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(cur));
+            AuthEngine.updateNavbarAuthUI();
+            AuthEngine.updateAdminFloatingBar();
+          }
+        }
+
+        if (typeof renderUsersTab === 'function') {
+          renderUsersTab();
+        }
+        if (typeof renderModalUsersList === 'function' && document.getElementById('registeredUsersModal')?.classList.contains('open')) {
+          renderModalUsersList();
+        }
       }
-    }).catch(err => {
+    }, err => {
       console.warn('Firestore users sync notice:', err.message);
+    });
+
+    // 3. Real-time sync for Menu Items Catalog
+    window.urDb.collection('menu_items').onSnapshot(snapshot => {
+      const cloudItems = [];
+      snapshot.forEach(doc => cloudItems.push(doc.data()));
+      if (cloudItems.length > 0 && typeof MenuEngine !== 'undefined') {
+        MenuEngine.mergeCloudMenuItems(cloudItems);
+        if (typeof renderMenuItems === 'function') {
+          renderMenuItems();
+        }
+        if (typeof renderMenuManagementTab === 'function') {
+          renderMenuManagementTab();
+        }
+      }
+    }, err => {
+      console.warn('Firestore menu sync notice:', err.message);
     });
   } catch (err) {
     console.warn('Firestore sync error:', err);

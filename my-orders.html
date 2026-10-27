@@ -217,8 +217,8 @@
       if (user) {
         profileName.textContent = user.name;
         profileEmail.textContent = `${user.email} • ${user.phone || 'No phone set'}`;
-        btnProfileAuth.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Log Out';
-        btnProfileAuth.onclick = () => { AuthEngine.logout(); };
+        btnProfileAuth.innerHTML = '<i class="fa-solid fa-user-pen"></i> Edit Profile';
+        btnProfileAuth.onclick = () => { window.location.href = 'profile.html'; };
       } else {
         profileName.textContent = 'Guest Customer';
         profileEmail.textContent = 'Log in to sync your orders or search below with your phone number.';

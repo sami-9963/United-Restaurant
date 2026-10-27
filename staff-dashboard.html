@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Staff Terminal — United Restaurant</title>
+  <meta name="robots" content="noindex, nofollow">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    .staff-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: #6366f1;
+    }
+    .metric-card.gold::before { background: var(--gold-accent); }
+    .metric-card.green::before { background: #22c55e; }
+    .metric-card.red::before { background: var(--red-primary); }
+    .metric-val {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-top: 0.35rem;
+    }
+    .kitchen-tab-btn {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .kitchen-tab-btn.active {
+      background: #6366f1;
+      color: #fff;
+      border-color: #6366f1;
+    }
+    @media print {
+      body * { visibility: hidden; }
+      .printable-slip, .printable-slip * { visibility: visible; }
+      .printable-slip { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body style="background: #060609;">
+
+  <!-- Header -->
+  <header class="site-header" style="background: rgba(10,10,16,0.95); border-bottom: 1px solid rgba(99, 102, 241, 0.3);">
+    <div class="container header-container">
+      <a href="index.html" class="brand-logo">
+        <div class="logo-crest" style="border-color: #818cf8; color: #818cf8;"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+          <span class="logo-tagline" style="color: #a5b4fc;">Kitchen Staff Dispatch Terminal</span>
+        </div>
+      </a>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <span class="badge badge-staff" id="staffLiveClock" style="font-family: monospace; font-size: 0.85rem;"></span>
+        <a href="order-online.html" class="btn btn-outline btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> Customer Menu
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Access Denied / Passcode Gate Screen -->
+  <section id="staffGateScreen" class="section-padding" style="display: none; min-height: 70vh; align-items: center; justify-content: center;">
+    <div class="container" style="max-width: 480px;">
+      <div style="background: var(--bg-card); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 16px; padding: 2.5rem; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(99, 102, 241, 0.15); border: 2px solid #6366f1; color: #818cf8; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 0.5rem;">Staff Terminal Access</h3>
+        <p id="staffGateMsg" style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; line-height: 1.5;">
+          This terminal is restricted to authorized kitchen staff and administrators. Please log in with an authorized Staff account.
+        </p>
+
+        <div style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; background: #6366f1; border-color: #6366f1;" onclick="openAuthModal('login');">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In to Staff Account
+          </button>
+        </div>
+
+        <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.75rem;">
+          Or enter kitchen quick-passcode:
+        </p>
+
+        <form onsubmit="handleStaffPasscodeUnlock(event);">
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <input type="password" id="staffPasscodeInput" class="form-control" placeholder="Enter Staff Passcode" style="text-align: center; font-size: 1.1rem; letter-spacing: 2px;" required>
+          </div>
+          <div id="staffGateErrorMsg" style="color: #f87171; font-size: 0.85rem; margin-bottom: 1rem; display: none;">
+            Incorrect staff passcode. Please verify or ask the restaurant administrator.
+          </div>
+          <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center;">
+            <i class="fa-solid fa-key"></i> Unlock Terminal
+          </button>
+        </form>
+        <div style="margin-top: 1.25rem; font-size: 0.8rem; color: var(--text-dim);">
+          Staff dispatch only • United City, Gulshan-2
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Staff Terminal Dashboard -->
+  <section id="staffDashboardScreen" class="section-padding" style="display: none; padding: 2.5rem 0 5rem;">
+    <div class="container">
+
+      <!-- Top Dashboard Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+        <div>
+          <span class="badge badge-staff" style="margin-bottom: 0.35rem;"><i class="fa-solid fa-shield-halved"></i> Kitchen Staff Station</span>
+          <h1 style="color: #fff; font-size: 1.8rem; margin: 0;">Kitchen Orders & Live Dispatch</h1>
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-top: 0.35rem;">
+            <span id="staffLiveCloudIndicator" style="font-size: 0.78rem; font-weight: 600; color: #22c55e; display: inline-flex; align-items: center;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; box-shadow: 0 0 8px #22c55e;"></span> Realtime Stream: Connecting...
+            </span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" id="btnSyncStaffOrders" onclick="forceStaffRefresh(this);" title="Force fresh fetch from Google Cloud">
+            <i class="fa-solid fa-arrows-rotate"></i> Sync Cloud
+          </button>
+          <button class="btn btn-outline btn-sm" id="btnStaffAudioToggle" onclick="toggleStaffAudioAlert();">
+            <i class="fa-solid fa-volume-high"></i> Alert Sound: ON
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="lockStaff();">
+            <i class="fa-solid fa-lock"></i> Lock Terminal
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Metrics Grid -->
+      <div class="staff-metrics-grid">
+        <div class="metric-card gold">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Total Kitchen Orders</span>
+          <div class="metric-val" id="staffMetricTotal">0</div>
+        </div>
+        <div class="metric-card red">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Pending Approval</span>
+          <div class="metric-val text-red" id="staffMetricPending">0</div>
+        </div>
+        <div class="metric-card">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">In Preparation / On Way</span>
+          <div class="metric-val" id="staffMetricActive">0</div>
+        </div>
+        <div class="metric-card green">
+          <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Cash Collected (Delivered)</span>
+          <div class="metric-val" id="staffMetricDeliveredCash">৳0</div>
+        </div>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.75rem;">
+        <button class="kitchen-tab-btn active" onclick="setStaffFilter('all', this);">
+          All Orders (<span id="staffTabCountAll">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setStaffFilter('Pending', this);">
+          ⏳ Pending (<span id="staffTabCountPending">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setStaffFilter('Preparing', this);">
+          🔥 Preparing (<span id="staffTabCountPreparing">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setStaffFilter('Out for Delivery', this);">
+          🛵 Out with Rider (<span id="staffTabCountOnWay">0</span>)
+        </button>
+        <button class="kitchen-tab-btn" onclick="setStaffFilter('Delivered', this);">
+          ✅ Delivered (<span id="staffTabCountDelivered">0</span>)
+        </button>
+      </div>
+
+      <!-- Live Orders Feed -->
+      <div id="staffOrdersFeed">
+        <!-- Rendered by JavaScript -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Audio Alert Tone -->
+  <audio id="staffAlertAudio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Google Firebase Cloud SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js?v=2.2"></script>
+  <script src="js/main.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.2"></script>
+
+  <script>
+    const STAFF_PASSCODE = 'kitchen2026';
+    let currentStaffFilter = 'all';
+    let staffAudioAlert = true;
+    let unsubscribeStaffStream = null;
+    let staffInitialDone = false;
+
+    // Clock
+    setInterval(() => {
+      const el = document.getElementById('staffLiveClock');
+      if (el) el.textContent = new Date().toLocaleTimeString('en-US');
+    }, 1000);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkStaffAccess();
+      setInterval(pollStaffOrders, 6000);
+    });
+
+    function checkStaffAccess() {
+      const currentUser = typeof AuthEngine !== 'undefined' ? AuthEngine.getCurrentUser() : null;
+      const isStaff = typeof AuthEngine !== 'undefined' && AuthEngine.isStaff();
+
+      if (isStaff) {
+        sessionStorage.setItem('ur_staff_unlocked', 'true');
+        showStaffDashboard();
+      } else if (currentUser && !isStaff) {
+        sessionStorage.removeItem('ur_staff_unlocked');
+        showStaffGate();
+        const msg = document.getElementById('staffGateMsg');
+        if (msg) {
+          msg.innerHTML = `You are logged in as <strong style="color: #fff;">${AuthEngine.escapeHtml(currentUser.email)}</strong> (Customer).<br><span style="color: #f87171;">Access Denied: Standard customers cannot access this kitchen dispatch dashboard.</span>`;
+        }
+      } else if (sessionStorage.getItem('ur_staff_unlocked') === 'true') {
+        showStaffDashboard();
+      } else {
+        showStaffGate();
+      }
+    }
+
+    function showStaffGate() {
+      document.getElementById('staffGateScreen').style.display = 'flex';
+      document.getElementById('staffDashboardScreen').style.display = 'none';
+      if (unsubscribeStaffStream) {
+        unsubscribeStaffStream();
+        unsubscribeStaffStream = null;
+      }
+    }
+
+    function showStaffDashboard() {
+      document.getElementById('staffGateScreen').style.display = 'none';
+      document.getElementById('staffDashboardScreen').style.display = 'block';
+      renderStaffDashboard();
+      startStaffRealtimeStream();
+    }
+
+    function handleStaffPasscodeUnlock(e) {
+      e.preventDefault();
+      const pass = document.getElementById('staffPasscodeInput').value;
+      if (pass === STAFF_PASSCODE) {
+        sessionStorage.setItem('ur_staff_unlocked', 'true');
+        document.getElementById('staffGateErrorMsg').style.display = 'none';
+        showStaffDashboard();
+      } else {
+        document.getElementById('staffGateErrorMsg').style.display = 'block';
+      }
+    }
+
+    function lockStaff() {
+      sessionStorage.removeItem('ur_staff_unlocked');
+      showStaffGate();
+    }
+
+    function toggleStaffAudioAlert() {
+      staffAudioAlert = !staffAudioAlert;
+      const btn = document.getElementById('btnStaffAudioToggle');
+      if (staffAudioAlert) {
+        btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Alert Sound: ON';
+        btn.style.color = '#4ade80';
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Alert Sound: OFF';
+        btn.style.color = 'var(--text-muted)';
+      }
+    }
+
+    function setStaffFilter(status, btn) {
+      currentStaffFilter = status;
+      document.querySelectorAll('.kitchen-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderStaffDashboard();
+    }
+
+    function startStaffRealtimeStream() {
+      const connect = () => {
+        if (!window.urDb) {
+          setTimeout(connect, 300);
+          return;
+        }
+
+        if (unsubscribeStaffStream) unsubscribeStaffStream();
+
+        const liveIndicator = document.getElementById('staffLiveCloudIndicator');
+        if (liveIndicator) {
+          liveIndicator.innerHTML = '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; box-shadow: 0 0 8px #22c55e;"></span> Realtime Stream: Active';
+          liveIndicator.style.color = '#22c55e';
+        }
+
+        unsubscribeStaffStream = window.urDb.collection('orders')
+          .onSnapshot({ includeMetadataChanges: false }, snapshot => {
+            const cloudOrders = [];
+            let incoming = false;
+
+            snapshot.docChanges().forEach(change => {
+              if (change.type === 'added' && staffInitialDone) incoming = true;
+            });
+
+            snapshot.forEach(doc => cloudOrders.push(doc.data()));
+
+            if (cloudOrders.length > 0) {
+              OrderEngine.mergeCloudOrders(cloudOrders);
+            }
+
+            if (incoming && staffAudioAlert) {
+              const audio = document.getElementById('staffAlertAudio');
+              if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log('Audio autoplay note:', e));
+              }
+            }
+
+            staffInitialDone = true;
+            renderStaffDashboard();
+          }, err => {
+            console.warn('Staff stream notice:', err);
+            if (liveIndicator) {
+              liveIndicator.innerHTML = '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #eab308; margin-right: 6px;"></span> Cloud: Connecting...';
+              liveIndicator.style.color = '#eab308';
+            }
+          });
+      };
+      connect();
+    }
+
+    function forceStaffRefresh(btn) {
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Syncing...';
+      if (window.urDb) {
+        window.urDb.collection('orders').get({ source: 'server' })
+          .then(snapshot => {
+            const cloudOrders = [];
+            snapshot.forEach(doc => cloudOrders.push(doc.data()));
+            if (cloudOrders.length > 0) OrderEngine.mergeCloudOrders(cloudOrders);
+            renderStaffDashboard();
+            if (btn) {
+              btn.innerHTML = '<i class="fa-solid fa-check text-gold"></i> Synced!';
+              setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud'; }, 1200);
+            }
+          })
+          .catch(() => {
+            renderStaffDashboard();
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud';
+          });
+      } else {
+        renderStaffDashboard();
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync Cloud';
+      }
+    }
+
+    function pollStaffOrders() {
+      if (sessionStorage.getItem('ur_staff_unlocked') !== 'true') return;
+      if (window.urDb) {
+        window.urDb.collection('orders').get({ source: 'server' })
+          .then(snapshot => {
+            const cloudOrders = [];
+            snapshot.forEach(doc => cloudOrders.push(doc.data()));
+            if (cloudOrders.length > 0) {
+              OrderEngine.mergeCloudOrders(cloudOrders);
+              renderStaffDashboard();
+            }
+          }).catch(() => renderStaffDashboard());
+      }
+    }
+
+    function renderStaffDashboard() {
+      const allOrders = OrderEngine.getAllOrders();
+
+      let pendingCount = 0;
+      let preparingCount = 0;
+      let onWayCount = 0;
+      let deliveredCount = 0;
+      let deliveredCash = 0;
+
+      allOrders.forEach(o => {
+        if (o.status === 'Pending') pendingCount++;
+        else if (o.status === 'Preparing') preparingCount++;
+        else if (o.status === 'Out for Delivery') onWayCount++;
+        else if (o.status === 'Delivered') {
+          deliveredCount++;
+          deliveredCash += Number(o.total || 0);
+        }
+      });
+
+      document.getElementById('staffMetricTotal').textContent = allOrders.length;
+      document.getElementById('staffMetricPending').textContent = pendingCount;
+      document.getElementById('staffMetricActive').textContent = preparingCount + onWayCount;
+      document.getElementById('staffMetricDeliveredCash').textContent = `৳${deliveredCash.toLocaleString()}`;
+
+      document.getElementById('staffTabCountAll').textContent = allOrders.length;
+      document.getElementById('staffTabCountPending').textContent = pendingCount;
+      document.getElementById('staffTabCountPreparing').textContent = preparingCount;
+      document.getElementById('staffTabCountOnWay').textContent = onWayCount;
+      document.getElementById('staffTabCountDelivered').textContent = deliveredCount;
+
+      const feed = document.getElementById('staffOrdersFeed');
+      let filtered = allOrders;
+      if (currentStaffFilter !== 'all') {
+        filtered = allOrders.filter(o => o.status === currentStaffFilter);
+      }
+
+      if (filtered.length === 0) {
+        feed.innerHTML = `
+          <div style="background: var(--bg-card); border: 1px dashed rgba(255,255,255,0.15); border-radius: 14px; padding: 3rem 2rem; text-align: center;">
+            <i class="fa-solid fa-check-double" style="font-size: 2.5rem; color: #22c55e; margin-bottom: 0.75rem;"></i>
+            <h3 style="color: #fff; font-size: 1.3rem;">No Orders in this Category</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">New customer orders will automatically stream in here in real time.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(order => {
+        const timeAgo = formatTimeAgo(order.createdAt);
+        const waUrl = OrderEngine.generateWhatsAppUrl(order);
+
+        let statusClass = 'status-pending';
+        if (order.status === 'Preparing') statusClass = 'status-preparing';
+        else if (order.status === 'Out for Delivery') statusClass = 'status-onway';
+        else if (order.status === 'Delivered') statusClass = 'status-delivered';
+        else if (order.status === 'Cancelled') statusClass = 'status-cancelled';
+
+        html += `
+          <div class="order-card" id="staff-card-${order.id}">
+            <div class="order-card-header">
+              <div>
+                <span class="order-card-id">#${order.id}</span>
+                <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 0.75rem;">
+                  <i class="fa-regular fa-clock"></i> ${timeAgo}
+                </span>
+                <div style="font-size: 0.95rem; color: #fff; margin-top: 0.35rem;">
+                  <strong>${order.customerName}</strong> 
+                  <span style="color: var(--text-muted);">(${order.customerPhone})</span>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span class="status-badge ${statusClass}">${order.status}</span>
+                <div style="color: #4ade80; font-weight: 700; font-size: 1.1rem; margin-top: 0.35rem;">
+                  COD Due: ৳${order.total}
+                </div>
+              </div>
+            </div>
+
+            <!-- Delivery Address & Cooking Notes -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.85rem; font-size: 0.88rem;">
+              <div><strong style="color: #a5b4fc;">📍 Delivery Address:</strong> ${order.deliveryAddress}</div>
+              ${order.orderNotes ? `<div style="margin-top: 0.25rem; color: #fca5a5;"><strong style="color: #fff;">📝 Cooking Instructions:</strong> ${order.orderNotes}</div>` : ''}
+            </div>
+
+            <!-- Items List -->
+            <table class="order-items-table">
+              <tbody>
+                ${order.items.map(it => `
+                  <tr>
+                    <td><strong style="color: #fff;">${it.name}</strong></td>
+                    <td style="text-align: center; color: var(--gold-accent); font-weight: 700;">x${it.qty}</td>
+                    <td class="price-col">৳${it.itemTotal}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Dispatch & Action Buttons (Staff Order Status Progression) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.06);">
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                ${order.status === 'Pending' ? `
+                  <button class="btn btn-primary btn-sm" style="background: #eab308; border-color: #eab308; color: #000; font-weight: 700;" onclick="changeStaffOrderStatus('${order.id}', 'Preparing');">
+                    <i class="fa-solid fa-fire-burner"></i> Accept & Start Preparing
+                  </button>
+                ` : ''}
+                ${order.status === 'Preparing' ? `
+                  <button class="btn btn-primary btn-sm" style="background: #a855f7; border-color: #a855f7;" onclick="changeStaffOrderStatus('${order.id}', 'Out for Delivery');">
+                    <i class="fa-solid fa-motorcycle"></i> Dispatch with Rider
+                  </button>
+                ` : ''}
+                ${order.status === 'Out for Delivery' ? `
+                  <button class="btn btn-primary btn-sm" style="background: #22c55e; border-color: #22c55e;" onclick="changeStaffOrderStatus('${order.id}', 'Delivered');">
+                    <i class="fa-solid fa-circle-check"></i> Mark Completed & Cash Collected
+                  </button>
+                ` : ''}
+                ${order.status !== 'Cancelled' && order.status !== 'Delivered' ? `
+                  <button class="btn btn-outline btn-sm" style="border-color: #ef4444; color: #ef4444;" onclick="changeStaffOrderStatus('${order.id}', 'Cancelled');">
+                    <i class="fa-solid fa-xmark"></i> Cancel Order
+                  </button>
+                ` : ''}
+              </div>
+
+              <div style="display: flex; gap: 0.5rem;">
+                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color: #22c55e; color: #22c55e;" title="Message Customer on WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i> WhatsApp (${order.customerPhone})
+                </a>
+                <button class="btn btn-outline btn-sm" onclick="printStaffSlip('${order.id}');" title="Print Kitchen Slip">
+                  <i class="fa-solid fa-print"></i> Slip
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      feed.innerHTML = html;
+    }
+
+    function changeStaffOrderStatus(orderId, newStatus) {
+      OrderEngine.updateStatus(orderId, newStatus);
+      renderStaffDashboard();
+    }
+
+    function printStaffSlip(orderId) {
+      const orders = OrderEngine.getAllOrders();
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      const printWindow = window.open('', '', 'width=600,height=600');
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>United Restaurant - Kitchen Ticket #${order.id}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; font-size: 14px; color: #000; }
+            h2, h4 { margin: 4px 0; text-align: center; }
+            hr { border: none; border-top: 1px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 4px 0; }
+          </style>
+        </head>
+        <body onload="window.print();window.close();">
+          <h2>UNITED RESTAURANT</h2>
+          <h4>Kitchen Dispatch Desk • Gulshan-2</h4>
+          <h4>Hotline: 01950-177666</h4>
+          <hr>
+          <div><strong>Order:</strong> #${order.id}</div>
+          <div><strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}</div>
+          <div><strong>Customer:</strong> ${order.customerName}</div>
+          <div><strong>Phone:</strong> ${order.customerPhone}</div>
+          <div><strong>Address:</strong> ${order.deliveryAddress}</div>
+          <div><strong>Instructions:</strong> ${order.orderNotes || 'Standard preparation'}</div>
+          <div><strong>Payment:</strong> Cash on Delivery</div>
+          <hr>
+          <table>
+            ${order.items.map(it => `
+              <tr>
+                <td>${it.qty}x ${it.name}</td>
+                <td style="text-align: right;">৳${it.itemTotal}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <hr>
+          <table>
+            <tr><td><strong>TOTAL CASH TO COLLECT:</strong></td><td style="text-align: right;"><strong>৳${order.total}</strong></td></tr>
+          </table>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    function formatTimeAgo(isoString) {
+      const diffSec = Math.floor((new Date() - new Date(isoString)) / 1000);
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHours = Math.floor(diffMin / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return `${Math.floor(diffHours / 24)}d ago`;
+    }
+  </script>
+</body>
+</html>

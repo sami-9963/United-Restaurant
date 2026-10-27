@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // RBAC HELPER FUNCTIONS
+    // Tiers: Customer, Staff, Admin
+    // Super Admin / Owner: alxami.islam@gmail.com
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwnerEmail() {
+      return isAuthenticated() && request.auth.token.email.lower() == 'alxami.islam@gmail.com';
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isOwnerEmail() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'admin');
+    }
+
+    function isStaff() {
+      return isAdmin() || (isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'staff');
+    }
+
+    // ============================================
+    // 1. USERS COLLECTION (Profile & Role Access)
+    // - Customer: Read/Update own profile (name, phone, address). Cannot alter 'role'.
+    // - Staff: Read-only access to customer contact info for delivery verification.
+    // - Admin: Full access (promote to Staff, demote to Customer, manage all accounts).
+    // ============================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isStaff());
+
+      allow create: if isAuthenticated() && (
+        request.auth.uid == userId &&
+        (request.resource.data.role == 'customer' || isOwnerEmail())
+      );
+
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == userId && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ============================================
+    // 2. ORDERS COLLECTION (Kitchen & Customer Orders)
+    // - Customer: Can place orders and view own past/active orders.
+    // - Staff: Can view all live orders and update statuses ('Preparing', 'Out for Delivery', 'Delivered').
+    // - Admin: Full control over all orders (including order deletions).
+    // ============================================
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        isStaff() || 
+        resource.data.customerEmail == request.auth.token.email || 
+        resource.data.userId == request.auth.uid
+      );
+
+      // Allow order placement (Cash on Delivery)
+      allow create: if true;
+
+      // Staff and Admin can update order status
+      allow update: if isStaff();
+
+      // Only Admin can delete orders
+      allow delete: if isAdmin();
+    }
+
+    // ============================================
+    // 3. MENU ITEMS COLLECTION
+    // - Customer & Public: Read-only catalog.
+    // - Staff: Read-only (CANNOT edit the menu).
+    // - Admin: Full write access (edit prices, descriptions, toggle availability).
+    // ============================================
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile & Order History — United Restaurant, Gulshan-2, Dhaka</title>
+  <meta name="description" content="Manage your customer profile, update contact information, and review your order history at United Restaurant.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    .profile-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 2rem;
+    }
+    .profile-tab-btn {
+      padding: 0.85rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: inherit;
+    }
+    .profile-tab-btn:hover {
+      color: #fff;
+    }
+    .profile-tab-btn.active {
+      color: var(--gold-accent);
+      border-bottom-color: var(--gold-accent);
+      background: rgba(234, 179, 8, 0.05);
+      border-radius: 8px 8px 0 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div class="top-bar">
+    <div class="container top-bar-content">
+      <div class="top-bar-item">
+        <i class="fa-solid fa-clock"></i>
+        <span>Open Today: 6:00 AM – 2:00 AM (7 Days a Week)</span>
+      </div>
+      <div class="top-bar-item">
+        <i class="fa-solid fa-location-dot"></i>
+        <span>United City, Gulshan-2, Dhaka</span>
+      </div>
+      <div class="top-bar-item">
+        <span class="badge badge-gold" style="font-size: 0.75rem;">Cash on Delivery Available</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header & Navigation -->
+  <header class="site-header">
+    <div class="container header-container">
+      <a href="index.html" class="brand-logo">
+        <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+          <span class="logo-tagline">Gulshan-2 • Fine Dining</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="menu.html" class="nav-link">Menu</a>
+        <a href="offers.html" class="nav-link">Offers</a>
+        <a href="location.html" class="nav-link">Location</a>
+        <a href="about.html" class="nav-link">About Us</a>
+        <a href="book-table.html" class="nav-link">Book Table</a>
+        <a href="order-online.html" class="nav-link">Order Online</a>
+        <a href="contact.html" class="nav-link">Contact Us</a>
+      </nav>
+
+      <div class="nav-actions">
+        <div class="nav-auth-container"></div>
+        <button class="mobile-toggle" aria-label="Toggle navigation menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Banner -->
+  <section class="page-banner" style="padding: 2.5rem 0 1.75rem;">
+    <div class="container">
+      <span class="badge badge-gold" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-user-shield"></i> Member Portal</span>
+      <h1 class="page-banner-title" style="margin-bottom: 0.5rem;">My <span>Profile</span></h1>
+      <p class="page-banner-desc">
+        Manage your dining account, update contact details, and view your complete live order history.
+      </p>
+    </div>
+  </section>
+
+  <!-- Main Content Area -->
+  <section class="section-padding" style="padding: 2.5rem 0 5rem;">
+    <div class="container" style="max-width: 860px;">
+
+      <!-- Guest State (Shown if not logged in) -->
+      <div id="profileGuestCard" style="display: none; background: var(--bg-card); border: 1px solid var(--border-red); border-radius: 16px; padding: 3rem 2rem; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6);">
+        <div style="width: 70px; height: 70px; border-radius: 50%; background: rgba(220,38,38,0.12); border: 2px solid var(--red-primary); color: var(--gold-accent); font-size: 2rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
+          <i class="fa-solid fa-id-card"></i>
+        </div>
+        <h2 style="color: #fff; font-size: 1.6rem; margin-bottom: 0.5rem;">Sign In to Access Your Profile</h2>
+        <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.75rem; font-size: 0.95rem; line-height: 1.6;">
+          Log in with your email to view and edit your profile details, save your preferred delivery address, and track all your active and past orders.
+        </p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" onclick="openAuthModal('login');">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Log In to Account
+          </button>
+          <button type="button" class="btn btn-outline" onclick="openAuthModal('signup');">
+            <i class="fa-solid fa-user-plus"></i> Create Free Account
+          </button>
+        </div>
+      </div>
+
+      <!-- Logged In Profile Wrapper -->
+      <div id="profileUserWrapper" style="display: none;">
+
+        <!-- Profile Header Summary Banner -->
+        <div class="profile-card" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
+          <div style="display: flex; align-items: center; gap: 1.25rem;">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, rgba(220,38,38,0.2), rgba(234,179,8,0.15)); border: 2px solid var(--gold-accent); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--gold-accent); flex-shrink: 0;">
+              <i class="fa-solid fa-user-tie" id="profileHeaderIcon"></i>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+                <h2 id="profileSummaryName" style="color: #fff; font-size: 1.4rem; margin: 0;"></h2>
+                <span id="profileSummaryRole" class="role-pill"></span>
+              </div>
+              <p id="profileSummaryEmail" style="color: var(--text-muted); font-size: 0.88rem; margin: 0;"></p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.6rem;">
+            <a href="order-online.html" class="btn btn-primary btn-sm">
+              <i class="fa-solid fa-utensils"></i> Order Food
+            </a>
+            <button type="button" class="btn btn-outline btn-sm" onclick="AuthEngine.logout();">
+              <i class="fa-solid fa-right-from-bracket"></i> Log Out
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile Tabs -->
+        <div class="profile-tabs">
+          <button type="button" class="profile-tab-btn active" id="tabBtnProfileInfo" onclick="switchProfileTab('info');">
+            <i class="fa-solid fa-user-pen"></i> Edit Profile & Contact
+          </button>
+          <button type="button" class="profile-tab-btn" id="tabBtnOrderHistory" onclick="switchProfileTab('orders');">
+            <i class="fa-solid fa-clock-rotate-left"></i> Order History (<span id="userOrdersCount">0</span>)
+          </button>
+        </div>
+
+        <!-- Tab 1: Edit Profile Information -->
+        <div id="tabContentInfo">
+          <div class="profile-card">
+            <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+              <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 0.25rem;">Personal & Contact Details</h3>
+              <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Keep your contact info up to date for smooth Cash on Delivery deliveries.</p>
+            </div>
+
+            <!-- Profile Alert Box -->
+            <div id="profileAlertBox" style="display: none; padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.9rem;"></div>
+
+            <form id="formEditProfile" onsubmit="handleSaveProfile(event);">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-user"></i> Display Name</label>
+                  <input type="text" id="editProfileName" class="form-control" placeholder="e.g. Al Sami Islam" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-phone"></i> Contact Phone (WhatsApp)</label>
+                  <input type="tel" id="editProfilePhone" class="form-control" placeholder="e.g. 01950-177666" required>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Email Address (Account ID)</label>
+                <input type="email" id="editProfileEmail" class="form-control" style="background: rgba(255,255,255,0.03); opacity: 0.8;" readonly disabled>
+                <small style="color: var(--text-dim); font-size: 0.78rem;">Email address is permanently linked to your order history and cannot be changed.</small>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-location-dot"></i> Default Delivery Address in Dhaka</label>
+                <textarea id="editProfileAddress" class="form-control" rows="3" placeholder="e.g. Apartment 4B, House 12, Road 4, United City, Gulshan-2, Dhaka"></textarea>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="submit" id="btnSaveProfile" class="btn btn-primary">
+                  <i class="fa-solid fa-floppy-disk"></i> Save Profile Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Tab 2: Order History -->
+        <div id="tabContentOrders" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+              <h3 style="color: #fff; font-size: 1.3rem; margin: 0;">Order History & Tracking</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.2rem 0 0;">Review all your active and past orders with live status updates</p>
+            </div>
+            <a href="order-online.html" class="btn btn-primary btn-sm">
+              <i class="fa-solid fa-plus"></i> Place New Order
+            </a>
+          </div>
+
+          <div id="profileOrdersFeed">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="brand-logo" style="margin-bottom: 1rem;">
+          <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
+          <div class="logo-text">
+            <span class="logo-title">UNITED <span>RESTAURANT</span></span>
+            <span class="logo-tagline">Gulshan-2, Dhaka</span>
+          </div>
+        </a>
+        <p>A premier luxury multi-cuisine dining destination in United City, Gulshan-2, Dhaka. Open 6:00 AM to 2:00 AM daily.</p>
+        <div class="footer-socials">
+          <a href="#" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="contact.html" class="social-link" aria-label="Contact Us"><i class="fa-solid fa-envelope"></i></a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="footer-title">Navigation</h4>
+        <ul class="footer-links">
+          <li><a href="index.html"><i class="fa-solid fa-chevron-right"></i> Home</a></li>
+          <li><a href="menu.html"><i class="fa-solid fa-chevron-right"></i> Menu</a></li>
+          <li><a href="offers.html"><i class="fa-solid fa-chevron-right"></i> Offers</a></li>
+          <li><a href="location.html"><i class="fa-solid fa-chevron-right"></i> Location</a></li>
+          <li><a href="about.html"><i class="fa-solid fa-chevron-right"></i> About Us</a></li>
+          <li><a href="book-table.html"><i class="fa-solid fa-chevron-right"></i> Book Table</a></li>
+          <li><a href="order-online.html"><i class="fa-solid fa-chevron-right"></i> Order Online</a></li>
+          <li><a href="contact.html"><i class="fa-solid fa-chevron-right"></i> Contact Us</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-title">Customer Service</h4>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-phone"></i>
+          <div><a href="tel:01950177666">01950-177666</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-brands fa-whatsapp"></i>
+          <div><a href="https://wa.me/8801950177666" target="_blank">01950-177666 (WhatsApp)</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-envelope"></i>
+          <div><a href="mailto:alxami.islam@gmail.com">alxami.islam@gmail.com</a></div>
+        </div>
+        <div class="footer-contact-item">
+          <i class="fa-solid fa-location-dot"></i>
+          <div>United City, Gulshan-2, Dhaka</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <p>&copy; 2026 United Restaurant. All rights reserved. United City, Gulshan-2, Dhaka.</p>
+      <p>Luxury Dining • Cash on Delivery • 6:00 AM to 2:00 AM</p>
+    </div>
+  </footer>
+
+  <!-- Google Firebase Cloud SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js?v=2.2"></script>
+  <script src="js/main.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.2"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      renderProfilePage();
+
+      if (window.location.hash === '#orders') {
+        switchProfileTab('orders');
+      }
+    });
+
+    function renderProfilePage() {
+      const user = AuthEngine.getCurrentUser();
+      const guestCard = document.getElementById('profileGuestCard');
+      const userWrapper = document.getElementById('profileUserWrapper');
+
+      if (!user) {
+        guestCard.style.display = 'block';
+        userWrapper.style.display = 'none';
+        return;
+      }
+
+      guestCard.style.display = 'none';
+      userWrapper.style.display = 'block';
+
+      // Summary
+      document.getElementById('profileSummaryName').textContent = user.name;
+      document.getElementById('profileSummaryEmail').textContent = `${user.email} • ${user.phone || 'No phone set'}`;
+      
+      const rolePill = document.getElementById('profileSummaryRole');
+      const roleIcon = document.getElementById('profileHeaderIcon');
+      const isOwner = (user.email || '').toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
+      const role = isOwner ? 'admin' : (user.role || 'customer');
+
+      rolePill.className = `role-pill ${role}`;
+      if (role === 'admin') {
+        rolePill.innerHTML = '<i class="fa-solid fa-crown text-gold"></i> OWNER & ADMIN';
+        roleIcon.className = 'fa-solid fa-crown';
+      } else if (role === 'staff') {
+        rolePill.innerHTML = '<i class="fa-solid fa-shield-halved"></i> KITCHEN STAFF';
+        roleIcon.className = 'fa-solid fa-shield-halved';
+      } else {
+        rolePill.innerHTML = '<i class="fa-solid fa-user"></i> CUSTOMER';
+        roleIcon.className = 'fa-solid fa-circle-user';
+      }
+
+      // Populate Form Fields
+      document.getElementById('editProfileName').value = user.name || '';
+      document.getElementById('editProfilePhone').value = user.phone || '';
+      document.getElementById('editProfileEmail').value = user.email || '';
+      document.getElementById('editProfileAddress').value = user.address || '';
+
+      renderProfileOrderHistory();
+    }
+
+    function switchProfileTab(tabName) {
+      const tabInfoBtn = document.getElementById('tabBtnProfileInfo');
+      const tabOrdersBtn = document.getElementById('tabBtnOrderHistory');
+      const contentInfo = document.getElementById('tabContentInfo');
+      const contentOrders = document.getElementById('tabContentOrders');
+
+      if (tabName === 'orders') {
+        tabInfoBtn.classList.remove('active');
+        tabOrdersBtn.classList.add('active');
+        contentInfo.style.display = 'none';
+        contentOrders.style.display = 'block';
+        renderProfileOrderHistory();
+      } else {
+        tabOrdersBtn.classList.remove('active');
+        tabInfoBtn.classList.add('active');
+        contentOrders.style.display = 'none';
+        contentInfo.style.display = 'block';
+      }
+    }
+
+    function handleSaveProfile(e) {
+      e.preventDefault();
+      const name = document.getElementById('editProfileName').value;
+      const phone = document.getElementById('editProfilePhone').value;
+      const address = document.getElementById('editProfileAddress').value;
+      const alertBox = document.getElementById('profileAlertBox');
+      const btn = document.getElementById('btnSaveProfile');
+
+      try {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+
+        const updated = AuthEngine.updateProfile({ name, phone, address });
+        
+        renderProfilePage();
+
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(34, 197, 94, 0.15)';
+        alertBox.style.border = '1px solid #22c55e';
+        alertBox.style.color = '#4ade80';
+        alertBox.innerHTML = '<i class="fa-solid fa-circle-check"></i> Profile details updated and synced successfully!';
+
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Changes Saved!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Profile Changes';
+          btn.disabled = false;
+        }, 1500);
+      } catch (err) {
+        alertBox.style.display = 'block';
+        alertBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        alertBox.style.border = '1px solid #ef4444';
+        alertBox.style.color = '#f87171';
+        alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${err.message}`;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Profile Changes';
+        btn.disabled = false;
+      }
+    }
+
+    function renderProfileOrderHistory() {
+      const user = AuthEngine.getCurrentUser();
+      const feed = document.getElementById('profileOrdersFeed');
+      const countEl = document.getElementById('userOrdersCount');
+      if (!user || !feed) return;
+
+      const userOrders = OrderEngine.getCustomerOrders(user.email || user.id);
+      if (countEl) countEl.textContent = userOrders.length;
+
+      if (userOrders.length === 0) {
+        feed.innerHTML = `
+          <div class="profile-card" style="text-align: center; padding: 3.5rem 1.5rem;">
+            <div style="font-size: 3rem; color: var(--text-dim); margin-bottom: 1rem;">
+              <i class="fa-solid fa-receipt"></i>
+            </div>
+            <h3 style="color: #fff; font-size: 1.4rem; margin-bottom: 0.5rem;">No Orders Placed Yet</h3>
+            <p style="color: var(--text-muted); max-width: 450px; margin: 0 auto 1.5rem; font-size: 0.95rem;">
+              Explore our fine dining culinary creations and place your first Cash on Delivery order in Gulshan-2, Dhaka!
+            </p>
+            <a href="order-online.html" class="btn btn-primary">
+              <i class="fa-solid fa-utensils"></i> Browse Menu & Order Food
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      userOrders.forEach(order => {
+        const dateFormatted = new Date(order.createdAt).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+        });
+
+        let statusClass = 'status-pending';
+        let statusIcon = 'fa-clock';
+        if (order.status === 'Preparing') {
+          statusClass = 'status-preparing';
+          statusIcon = 'fa-fire-burner';
+        } else if (order.status === 'Out for Delivery') {
+          statusClass = 'status-onway';
+          statusIcon = 'fa-motorcycle';
+        } else if (order.status === 'Delivered') {
+          statusClass = 'status-delivered';
+          statusIcon = 'fa-circle-check';
+        } else if (order.status === 'Cancelled') {
+          statusClass = 'status-cancelled';
+          statusIcon = 'fa-circle-xmark';
+        }
+
+        const waUrl = OrderEngine.generateWhatsAppUrl(order);
+
+        html += `
+          <div class="order-card fade-in-up" style="margin-bottom: 1.5rem;">
+            <div class="order-card-header">
+              <div>
+                <span class="order-card-id">#${order.id}</span>
+                <div style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.2rem;">
+                  <i class="fa-regular fa-calendar"></i> Placed on ${dateFormatted}
+                </div>
+              </div>
+              <div>
+                <span class="status-badge ${statusClass}">
+                  <i class="fa-solid ${statusIcon}"></i> ${order.status}
+                </span>
+              </div>
+            </div>
+
+            <!-- Items Breakdown Table -->
+            <table class="order-items-table">
+              <thead>
+                <tr>
+                  <th>Dish / Beverage</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th class="price-col">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(order.items || []).map(it => `
+                  <tr>
+                    <td><strong style="color: #fff;">${it.name}</strong></td>
+                    <td style="text-align: center; color: var(--gold-accent); font-weight: 700;">x${it.qty}</td>
+                    <td class="price-col">৳${it.itemTotal}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Delivery & Payment Information -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 0.88rem;">
+              <div style="margin-bottom: 0.35rem; color: var(--text-muted);">
+                <i class="fa-solid fa-location-dot text-red" style="margin-right: 0.4rem;"></i>
+                <strong style="color: #fff;">Delivery Address:</strong> ${order.deliveryAddress}
+              </div>
+              <div style="color: var(--text-muted); display: flex; justify-content: space-between; flex-wrap: wrap;">
+                <div><i class="fa-solid fa-phone" style="margin-right: 0.4rem;"></i><strong>Contact:</strong> ${order.customerPhone}</div>
+                <div><i class="fa-solid fa-money-bill-wave text-gold" style="margin-right: 0.4rem;"></i><strong>Payment:</strong> <span style="color: #4ade80; font-weight: 700;">Cash on Delivery (৳${order.total})</span></div>
+              </div>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="order-card-footer">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cash Due: </span>
+                <strong style="font-family: var(--font-serif); font-size: 1.35rem; color: var(--red-primary);">৳${order.total}</strong>
+              </div>
+              <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color: #22c55e; color: #22c55e;">
+                  <i class="fa-brands fa-whatsapp"></i> Dispatch Hotline
+                </a>
+                <a href="order-online.html" class="btn btn-primary btn-sm">
+                  <i class="fa-solid fa-rotate-right"></i> Order Again
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      feed.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
