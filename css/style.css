@@ -3452,6 +3452,77 @@ textarea.form-control {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
+/* Profile Picture & Avatar Styles */
+.avatar-upload-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avatar-image-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--gold-accent);
+  overflow: hidden;
+  background: #111116;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.25);
+  position: relative;
+}
+
+.avatar-image-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-silhouette-icon {
+  font-size: 2.2rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.avatar-camera-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--red-primary);
+  border: 2px solid #060609;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.avatar-camera-btn:hover {
+  background: var(--gold-accent);
+  color: #000;
+  transform: scale(1.12);
+}
+
+.nav-avatar-img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--gold-accent);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+
 
 
 

@@ -15,6 +15,7 @@ const FIREBASE_CONFIG = {
 };
 
 let urDb = null;
+let urStorage = null;
 let isFirebaseActive = false;
 
 try {
@@ -25,6 +26,15 @@ try {
     urDb = firebase.firestore();
     isFirebaseActive = true;
     console.log("🔥 United Restaurant: Google Firebase Cloud connected successfully! (Project: united-restaurant-73d22)");
+
+    if (typeof firebase.storage === 'function') {
+      try {
+        urStorage = firebase.storage();
+        console.log("🔥 United Restaurant: Firebase Cloud Storage initialized successfully!");
+      } catch (storageErr) {
+        console.warn("Firebase Storage setup note:", storageErr.message);
+      }
+    }
   }
 } catch (e) {
   console.warn("Firebase initialization note:", e);
@@ -32,4 +42,5 @@ try {
 
 window.FIREBASE_CONFIG = FIREBASE_CONFIG;
 window.urDb = urDb;
+window.urStorage = urStorage;
 window.isFirebaseActive = isFirebaseActive;

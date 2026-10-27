@@ -206,6 +206,149 @@ const AuthEngine = {
     return currentUser;
   },
 
+  // Upload and set Profile Picture (Firebase Storage + Firestore document update)
+  async uploadProfilePhoto(file) {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) throw new Error('You must be logged in to upload a profile picture.');
+    if (!file || !file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file (PNG, JPG, WebP, etc.).');
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error('Image size must be less than 15MB.');
+    }
+
+    let photoURL = null;
+
+    // 1. Try uploading to Firebase Cloud Storage if initialized
+    if (window.urStorage) {
+      try {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const fileRef = window.urStorage.ref().child(`profile_pictures/${currentUser.id}_${Date.now()}.${ext}`);
+        const snapshot = await fileRef.put(file, { contentType: file.type });
+        photoURL = await snapshot.ref.getDownloadURL();
+        console.log('🔥 Profile picture uploaded to Firebase Storage:', photoURL);
+      } catch (storageErr) {
+        console.warn('Firebase Storage upload note (using resilient cloud-optimized image data):', storageErr.message);
+      }
+    }
+
+    // 2. High-performance fallback: compress to high-resolution JPEG Data URL
+    if (!photoURL) {
+      photoURL = await this.compressImageToDataURL(file, 400, 400, 0.85);
+    }
+
+    return await this.saveProfilePhoto(photoURL);
+  },
+
+  // Save profile photo URL to user document and localStorage
+  async saveProfilePhoto(photoURL) {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) throw new Error('You must be logged in.');
+
+    currentUser.photoURL = photoURL;
+    currentUser.updatedAt = new Date().toISOString();
+
+    // Update in stored users array
+    const users = this.getUsers();
+    const idx = users.findIndex(u => (u.id && u.id === currentUser.id) || (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
+    if (idx >= 0) {
+      users[idx].photoURL = photoURL;
+      users[idx].updatedAt = currentUser.updatedAt;
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    this.updateNavbarAuthUI();
+
+    // Sync to Cloud Firestore users collection
+    if (window.urDb) {
+      try {
+        await window.urDb.collection('users').doc(currentUser.id).set({
+          photoURL,
+          updatedAt: currentUser.updatedAt
+        }, { merge: true });
+        console.log('🔥 Profile photo URL saved to Cloud Firestore for:', currentUser.email);
+      } catch (dbErr) {
+        console.warn('Cloud Firestore photo sync note:', dbErr.message);
+      }
+    }
+
+    return currentUser;
+  },
+
+  // Remove profile photo (reset back to standard blank silhouette)
+  async removeProfilePhoto() {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) throw new Error('You must be logged in.');
+
+    currentUser.photoURL = '';
+    currentUser.updatedAt = new Date().toISOString();
+
+    const users = this.getUsers();
+    const idx = users.findIndex(u => (u.id && u.id === currentUser.id) || (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
+    if (idx >= 0) {
+      users[idx].photoURL = '';
+      users[idx].updatedAt = currentUser.updatedAt;
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+    this.updateNavbarAuthUI();
+
+    if (window.urDb) {
+      try {
+        await window.urDb.collection('users').doc(currentUser.id).set({
+          photoURL: '',
+          updatedAt: currentUser.updatedAt
+        }, { merge: true });
+        console.log('🔥 Profile photo reset in Cloud Firestore for:', currentUser.email);
+      } catch (e) {
+        console.warn('Cloud photo clear note:', e);
+      }
+    }
+
+    return currentUser;
+  },
+
+  // Compress image to optimized Data URL
+  compressImageToDataURL(file, maxWidth = 400, maxHeight = 400, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = () => reject(new Error('Failed to load image file.'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file.'));
+      reader.readAsDataURL(file);
+    });
+  },
+
   // Sign up new user
   signUp({ name, email, password, phone = '', address = '' }) {
     name = (name || '').trim();
@@ -343,21 +486,32 @@ const AuthEngine = {
     
     containers.forEach(container => {
       if (user) {
+        const photoHtml = user.photoURL 
+          ? `<img src="${this.escapeHtml(user.photoURL)}" alt="${this.escapeHtml(user.name)}" class="nav-avatar-img">`
+          : null;
+
         if (isAdmin) {
           container.innerHTML = `
             <div class="user-menu-dropdown">
               <button class="btn btn-primary btn-sm user-menu-btn" style="background: linear-gradient(135deg, #b91c1c, #7f1d1d); border: 1px solid var(--gold-accent); box-shadow: 0 0 15px rgba(234, 179, 8, 0.35);" onclick="toggleUserMenu(event)">
-                <i class="fa-solid fa-crown text-gold"></i>
+                ${photoHtml || '<i class="fa-solid fa-crown text-gold"></i>'}
                 <span class="nav-user-text">Owner: ${this.escapeHtml(user.name.split(' ')[0])}</span>
                 <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
               <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 280px;">
                 <div class="user-dropdown-header" style="background: rgba(234, 179, 8, 0.08); border-bottom: 1px solid rgba(234, 179, 8, 0.25);">
-                  <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
-                    <i class="fa-solid fa-crown"></i> Restaurant Owner / Admin
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--gold-accent); overflow: hidden; background: #121218; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      ${user.photoURL ? `<img src="${this.escapeHtml(user.photoURL)}" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fa-solid fa-crown text-gold" style="font-size: 1.1rem;"></i>'}
+                    </div>
+                    <div>
+                      <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Restaurant Owner / Admin
+                      </div>
+                      <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
+                      <small style="color: var(--text-muted); display: block;">${this.escapeHtml(user.email)}</small>
+                    </div>
                   </div>
-                  <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
-                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
                 </div>
                 <a href="admin-orders.html" class="user-dropdown-item text-gold" style="font-weight: 700;">
                   <i class="fa-solid fa-clipboard-list text-gold"></i> Kitchen Live Orders Terminal
@@ -387,17 +541,24 @@ const AuthEngine = {
           container.innerHTML = `
             <div class="user-menu-dropdown">
               <button class="btn btn-outline btn-sm user-menu-btn" style="border-color: #6366f1; color: #c7d2fe; background: rgba(99, 102, 241, 0.1);" onclick="toggleUserMenu(event)">
-                <i class="fa-solid fa-shield-halved" style="color: #818cf8;"></i>
+                ${photoHtml || '<i class="fa-solid fa-shield-halved" style="color: #818cf8;"></i>'}
                 <span class="nav-user-text">Staff: ${this.escapeHtml(user.name.split(' ')[0])}</span>
                 <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
               <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 270px;">
                 <div class="user-dropdown-header" style="background: rgba(99, 102, 241, 0.12); border-bottom: 1px solid rgba(99, 102, 241, 0.25);">
-                  <div style="font-size: 0.72rem; color: #818cf8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
-                    <i class="fa-solid fa-shield-halved"></i> Kitchen Staff Account
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #818cf8; overflow: hidden; background: #121218; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      ${user.photoURL ? `<img src="${this.escapeHtml(user.photoURL)}" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fa-solid fa-shield-halved" style="color: #818cf8; font-size: 1.1rem;"></i>'}
+                    </div>
+                    <div>
+                      <div style="font-size: 0.72rem; color: #818cf8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Kitchen Staff Account
+                      </div>
+                      <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
+                      <small style="color: var(--text-muted); display: block;">${this.escapeHtml(user.email)}</small>
+                    </div>
                   </div>
-                  <strong style="color: #fff; font-size: 0.95rem;">${this.escapeHtml(user.name)}</strong>
-                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
                 </div>
                 <a href="staff-dashboard.html" class="user-dropdown-item" style="color: #a5b4fc; font-weight: 700;">
                   <i class="fa-solid fa-clipboard-check text-gold"></i> Kitchen Staff Dashboard
@@ -422,17 +583,24 @@ const AuthEngine = {
           container.innerHTML = `
             <div class="user-menu-dropdown">
               <button class="btn btn-outline btn-sm user-menu-btn" onclick="toggleUserMenu(event)">
-                <i class="fa-solid fa-circle-user text-gold"></i>
+                ${photoHtml || '<i class="fa-solid fa-circle-user text-gold"></i>'}
                 <span class="nav-user-text">${this.escapeHtml(user.name.split(' ')[0])}</span>
                 <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; margin-left: 0.2rem;"></i>
               </button>
               <div class="user-dropdown-panel" id="userDropdownPanel" style="width: 250px;">
                 <div class="user-dropdown-header">
-                  <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 700; text-transform: uppercase;">
-                    <i class="fa-solid fa-user"></i> Customer Profile
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border-red); overflow: hidden; background: #121218; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      ${user.photoURL ? `<img src="${this.escapeHtml(user.photoURL)}" style="width: 100%; height: 100%; object-fit: cover;">` : '<i class="fa-solid fa-circle-user text-gold" style="font-size: 1.1rem;"></i>'}
+                    </div>
+                    <div>
+                      <div style="font-size: 0.72rem; color: var(--gold-accent); font-weight: 700; text-transform: uppercase;">
+                        Customer Profile
+                      </div>
+                      <strong style="color: #fff;">${this.escapeHtml(user.name)}</strong>
+                      <small style="color: var(--text-muted); display: block;">${this.escapeHtml(user.email)}</small>
+                    </div>
                   </div>
-                  <strong style="color: #fff;">${this.escapeHtml(user.name)}</strong>
-                  <small style="color: var(--text-muted);">${this.escapeHtml(user.email)}</small>
                 </div>
                 <a href="profile.html" class="user-dropdown-item" style="font-weight: 600;">
                   <i class="fa-solid fa-id-badge text-gold"></i> My Profile & Contact
@@ -471,15 +639,24 @@ const AuthEngine = {
       }
 
       if (user) {
+        const photoOrSilhouette = user.photoURL 
+          ? `<img src="${this.escapeHtml(user.photoURL)}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-accent);">`
+          : null;
+
         if (isAdmin) {
           authCard.innerHTML = `
             <div class="mobile-owner-box">
               <div class="mobile-owner-header">
-                <div class="mobile-owner-badge">
-                  <i class="fa-solid fa-crown text-gold"></i> RESTAURANT OWNER / ADMIN
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  ${photoOrSilhouette || '<div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(234,179,8,0.15); border: 2px solid var(--gold-accent); display: flex; align-items: center; justify-content: center; color: var(--gold-accent);"><i class="fa-solid fa-crown"></i></div>'}
+                  <div>
+                    <div class="mobile-owner-badge">
+                      <i class="fa-solid fa-crown text-gold"></i> RESTAURANT OWNER / ADMIN
+                    </div>
+                    <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                    <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+                  </div>
                 </div>
-                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
-                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
               </div>
 
               <div class="mobile-owner-links">
@@ -518,11 +695,16 @@ const AuthEngine = {
           authCard.innerHTML = `
             <div class="mobile-owner-box mobile-staff-box">
               <div class="mobile-owner-header">
-                <div class="mobile-owner-badge mobile-staff-badge">
-                  <i class="fa-solid fa-shield-halved"></i> KITCHEN STAFF ACCOUNT
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  ${photoOrSilhouette || '<div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(99,102,241,0.15); border: 2px solid #818cf8; display: flex; align-items: center; justify-content: center; color: #818cf8;"><i class="fa-solid fa-shield-halved"></i></div>'}
+                  <div>
+                    <div class="mobile-owner-badge mobile-staff-badge">
+                      <i class="fa-solid fa-shield-halved"></i> KITCHEN STAFF ACCOUNT
+                    </div>
+                    <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                    <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+                  </div>
                 </div>
-                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
-                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
               </div>
 
               <div class="mobile-owner-links">
@@ -554,11 +736,16 @@ const AuthEngine = {
           authCard.innerHTML = `
             <div class="mobile-owner-box mobile-customer-box">
               <div class="mobile-owner-header">
-                <div class="mobile-owner-badge">
-                  <i class="fa-solid fa-circle-user text-gold"></i> CUSTOMER ACCOUNT
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  ${photoOrSilhouette || '<div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: var(--gold-accent);"><i class="fa-solid fa-circle-user"></i></div>'}
+                  <div>
+                    <div class="mobile-owner-badge">
+                      <i class="fa-solid fa-circle-user text-gold"></i> CUSTOMER ACCOUNT
+                    </div>
+                    <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
+                    <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
+                  </div>
                 </div>
-                <strong class="mobile-owner-name">${this.escapeHtml(user.name)}</strong>
-                <small class="mobile-owner-email">${this.escapeHtml(user.email)}</small>
               </div>
 
               <div class="mobile-owner-links">

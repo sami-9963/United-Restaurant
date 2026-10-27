@@ -137,20 +137,47 @@
       <!-- Logged In Profile Wrapper -->
       <div id="profileUserWrapper" style="display: none;">
 
-        <!-- Profile Header Summary Banner -->
-        <div class="profile-card" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
-          <div style="display: flex; align-items: center; gap: 1.25rem;">
-            <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, rgba(220,38,38,0.2), rgba(234,179,8,0.15)); border: 2px solid var(--gold-accent); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--gold-accent); flex-shrink: 0;">
-              <i class="fa-solid fa-user-tie" id="profileHeaderIcon"></i>
+        <!-- Profile Header Summary Banner with Avatar & Picture Upload -->
+        <div class="profile-card" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+            <!-- Avatar Frame & Upload Trigger -->
+            <div class="avatar-upload-wrap">
+              <div class="avatar-image-frame" id="profileAvatarFrame">
+                <!-- If user has photo, img will show; otherwise blank silhouette shows -->
+                <img id="profileAvatarImg" src="" alt="Profile Picture" style="display: none;">
+                <div id="profileAvatarSilhouette" class="avatar-silhouette-icon">
+                  <i class="fa-solid fa-user"></i>
+                </div>
+              </div>
+              <button type="button" class="avatar-camera-btn" onclick="triggerProfilePhotoUpload();" title="Upload new profile picture" aria-label="Upload photo">
+                <i class="fa-solid fa-camera"></i>
+              </button>
             </div>
+
+            <!-- Profile Info & Photo Action Buttons -->
             <div>
               <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
                 <h2 id="profileSummaryName" style="color: #fff; font-size: 1.4rem; margin: 0;"></h2>
                 <span id="profileSummaryRole" class="role-pill"></span>
               </div>
-              <p id="profileSummaryEmail" style="color: var(--text-muted); font-size: 0.88rem; margin: 0;"></p>
+              <p id="profileSummaryEmail" style="color: var(--text-muted); font-size: 0.88rem; margin: 0 0 0.75rem;"></p>
+              
+              <!-- Photo Upload Buttons -->
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <input type="file" id="profilePhotoFileInput" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;" onchange="handleProfilePhotoSelected(event);">
+                <button type="button" class="btn btn-outline btn-sm" id="btnUploadPicture" onclick="triggerProfilePhotoUpload();">
+                  <i class="fa-solid fa-upload"></i> <span id="uploadPictureBtnText">Upload Picture</span>
+                </button>
+                <button type="button" class="btn btn-sm" id="btnRemovePicture" style="display: none; border: 1px solid rgba(220,38,38,0.4); color: #f87171; background: transparent; padding: 0.45rem 0.75rem; font-size: 0.82rem;" onclick="handleRemoveProfilePhoto();" title="Remove custom picture and revert to blank silhouette">
+                  <i class="fa-solid fa-trash-can"></i> Remove Picture
+                </button>
+              </div>
+
+              <!-- Live Upload Feedback Status -->
+              <div id="photoUploadStatus" style="font-size: 0.82rem; margin-top: 0.45rem; display: none;"></div>
             </div>
           </div>
+
           <div style="display: flex; gap: 0.6rem;">
             <a href="order-online.html" class="btn btn-primary btn-sm">
               <i class="fa-solid fa-utensils"></i> Order Food
@@ -299,6 +326,7 @@
   <!-- Google Firebase Cloud SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js?v=2.2"></script>
   <script src="js/main.js?v=2.2"></script>
   <script src="js/auth.js?v=2.2"></script>
@@ -331,20 +359,36 @@
       document.getElementById('profileSummaryEmail').textContent = `${user.email} • ${user.phone || 'No phone set'}`;
       
       const rolePill = document.getElementById('profileSummaryRole');
-      const roleIcon = document.getElementById('profileHeaderIcon');
       const isOwner = (user.email || '').toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
       const role = isOwner ? 'admin' : (user.role || 'customer');
 
       rolePill.className = `role-pill ${role}`;
       if (role === 'admin') {
         rolePill.innerHTML = '<i class="fa-solid fa-crown text-gold"></i> OWNER & ADMIN';
-        roleIcon.className = 'fa-solid fa-crown';
       } else if (role === 'staff') {
         rolePill.innerHTML = '<i class="fa-solid fa-shield-halved"></i> KITCHEN STAFF';
-        roleIcon.className = 'fa-solid fa-shield-halved';
       } else {
         rolePill.innerHTML = '<i class="fa-solid fa-user"></i> CUSTOMER';
-        roleIcon.className = 'fa-solid fa-circle-user';
+      }
+
+      // Profile Picture & Avatar Silhouette Handling
+      const avatarImg = document.getElementById('profileAvatarImg');
+      const avatarSil = document.getElementById('profileAvatarSilhouette');
+      const uploadBtnText = document.getElementById('uploadPictureBtnText');
+      const removeBtn = document.getElementById('btnRemovePicture');
+
+      if (user.photoURL && user.photoURL.trim()) {
+        avatarImg.src = user.photoURL;
+        avatarImg.style.display = 'block';
+        avatarSil.style.display = 'none';
+        if (uploadBtnText) uploadBtnText.textContent = 'Change Picture';
+        if (removeBtn) removeBtn.style.display = 'inline-flex';
+      } else {
+        avatarImg.src = '';
+        avatarImg.style.display = 'none';
+        avatarSil.style.display = 'flex';
+        if (uploadBtnText) uploadBtnText.textContent = 'Upload Picture';
+        if (removeBtn) removeBtn.style.display = 'none';
       }
 
       // Populate Form Fields
@@ -354,6 +398,109 @@
       document.getElementById('editProfileAddress').value = user.address || '';
 
       renderProfileOrderHistory();
+    }
+
+    function triggerProfilePhotoUpload() {
+      const input = document.getElementById('profilePhotoFileInput');
+      if (input) {
+        input.value = ''; // Reset to ensure change event fires even if same file chosen
+        input.click();
+      }
+    }
+
+    async function handleProfilePhotoSelected(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById('photoUploadStatus');
+      const uploadBtn = document.getElementById('btnUploadPicture');
+
+      try {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = 'var(--gold-accent)';
+          statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading photo & updating database...';
+        }
+        if (uploadBtn) uploadBtn.disabled = true;
+
+        // Perform upload & cloud sync
+        const updatedUser = await AuthEngine.uploadProfilePhoto(file);
+
+        // Update picture instantly on screen without requiring a page refresh
+        const avatarImg = document.getElementById('profileAvatarImg');
+        const avatarSil = document.getElementById('profileAvatarSilhouette');
+        const uploadBtnText = document.getElementById('uploadPictureBtnText');
+        const removeBtn = document.getElementById('btnRemovePicture');
+
+        if (avatarImg) {
+          avatarImg.src = updatedUser.photoURL;
+          avatarImg.style.display = 'block';
+        }
+        if (avatarSil) avatarSil.style.display = 'none';
+        if (uploadBtnText) uploadBtnText.textContent = 'Change Picture';
+        if (removeBtn) removeBtn.style.display = 'inline-flex';
+
+        if (statusEl) {
+          statusEl.style.color = '#4ade80';
+          statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Profile picture updated instantly!';
+          setTimeout(() => {
+            statusEl.style.display = 'none';
+          }, 3500);
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = '#f87171';
+          statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${err.message}`;
+        }
+      } finally {
+        if (uploadBtn) uploadBtn.disabled = false;
+      }
+    }
+
+    async function handleRemoveProfilePhoto() {
+      if (!confirm('Are you sure you want to remove your profile picture and restore the default silhouette?')) {
+        return;
+      }
+
+      const statusEl = document.getElementById('photoUploadStatus');
+      try {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = 'var(--gold-accent)';
+          statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Removing picture...';
+        }
+
+        await AuthEngine.removeProfilePhoto();
+
+        // Update UI immediately without reload
+        const avatarImg = document.getElementById('profileAvatarImg');
+        const avatarSil = document.getElementById('profileAvatarSilhouette');
+        const uploadBtnText = document.getElementById('uploadPictureBtnText');
+        const removeBtn = document.getElementById('btnRemovePicture');
+
+        if (avatarImg) {
+          avatarImg.src = '';
+          avatarImg.style.display = 'none';
+        }
+        if (avatarSil) avatarSil.style.display = 'flex';
+        if (uploadBtnText) uploadBtnText.textContent = 'Upload Picture';
+        if (removeBtn) removeBtn.style.display = 'none';
+
+        if (statusEl) {
+          statusEl.style.color = '#4ade80';
+          statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Profile picture removed. Default avatar silhouette restored.';
+          setTimeout(() => {
+            statusEl.style.display = 'none';
+          }, 3500);
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = '#f87171';
+          statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${err.message}`;
+        }
+      }
     }
 
     function switchProfileTab(tabName) {
