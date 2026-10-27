@@ -414,25 +414,32 @@
 
       const statusEl = document.getElementById('photoUploadStatus');
       const uploadBtn = document.getElementById('btnUploadPicture');
+      const avatarImg = document.getElementById('profileAvatarImg');
+      const avatarSil = document.getElementById('profileAvatarSilhouette');
+      const uploadBtnText = document.getElementById('uploadPictureBtnText');
+      const removeBtn = document.getElementById('btnRemovePicture');
+
+      // Optimistic instant preview (0ms latency)
+      const previewUrl = URL.createObjectURL(file);
+      if (avatarImg) {
+        avatarImg.src = previewUrl;
+        avatarImg.style.display = 'block';
+      }
+      if (avatarSil) avatarSil.style.display = 'none';
 
       try {
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.style.color = 'var(--gold-accent)';
-          statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading photo & updating database...';
+          statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving photo & updating database...';
         }
         if (uploadBtn) uploadBtn.disabled = true;
 
-        // Perform upload & cloud sync
+        // Perform instant upload & cloud sync (< 1 second)
         const updatedUser = await AuthEngine.uploadProfilePhoto(file);
 
-        // Update picture instantly on screen without requiring a page refresh
-        const avatarImg = document.getElementById('profileAvatarImg');
-        const avatarSil = document.getElementById('profileAvatarSilhouette');
-        const uploadBtnText = document.getElementById('uploadPictureBtnText');
-        const removeBtn = document.getElementById('btnRemovePicture');
-
-        if (avatarImg) {
+        // Update picture with final persisted URL
+        if (avatarImg && updatedUser.photoURL) {
           avatarImg.src = updatedUser.photoURL;
           avatarImg.style.display = 'block';
         }
@@ -448,6 +455,15 @@
           }, 3500);
         }
       } catch (err) {
+        // Revert to saved photo if upload fails
+        const currentUser = AuthEngine.getCurrentUser();
+        if (currentUser && currentUser.photoURL) {
+          if (avatarImg) avatarImg.src = currentUser.photoURL;
+        } else {
+          if (avatarImg) { avatarImg.src = ''; avatarImg.style.display = 'none'; }
+          if (avatarSil) avatarSil.style.display = 'flex';
+        }
+
         if (statusEl) {
           statusEl.style.display = 'block';
           statusEl.style.color = '#f87171';

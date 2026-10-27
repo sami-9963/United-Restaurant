@@ -206,38 +206,54 @@ const AuthEngine = {
     return currentUser;
   },
 
-  // Upload and set Profile Picture (Firebase Storage + Firestore document update)
+  // Upload and set Profile Picture (Instant Client-Side Compression + Cloud Firestore Sync + Optional Storage Offload)
   async uploadProfilePhoto(file) {
     const currentUser = this.getCurrentUser();
     if (!currentUser) throw new Error('You must be logged in to upload a profile picture.');
     if (!file || !file.type.startsWith('image/')) {
       throw new Error('Please select a valid image file (PNG, JPG, WebP, etc.).');
     }
-    if (file.size > 15 * 1024 * 1024) {
-      throw new Error('Image size must be less than 15MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error('Image size must be less than 20MB.');
     }
 
-    let photoURL = null;
+    // 1. Instantly compress and center-crop to a clean 320x320 square avatar (~18KB)
+    const photoURL = await this.compressImageToDataURL(file, 320, 320, 0.82);
 
-    // 1. Try uploading to Firebase Cloud Storage if initialized
-    if (window.urStorage) {
+    // 2. Instantly persist to user record, localStorage, UI navbar, and Cloud Firestore (< 250ms)
+    const updatedUser = await this.saveProfilePhoto(photoURL);
+
+    // 3. Resilient background Cloud Storage upload (non-blocking, never freezes or hangs UI)
+    if (window.urStorage && window.urDb) {
+      const userDocId = currentUser.id || (currentUser.email ? currentUser.email.replace(/[^a-zA-Z0-9_-]/g, '_') : 'user');
+      const ext = (file.name && file.name.split('.').pop()) || 'jpg';
       try {
-        const ext = file.name.split('.').pop() || 'jpg';
-        const fileRef = window.urStorage.ref().child(`profile_pictures/${currentUser.id}_${Date.now()}.${ext}`);
-        const snapshot = await fileRef.put(file, { contentType: file.type });
-        photoURL = await snapshot.ref.getDownloadURL();
-        console.log('🔥 Profile picture uploaded to Firebase Storage:', photoURL);
-      } catch (storageErr) {
-        console.warn('Firebase Storage upload note (using resilient cloud-optimized image data):', storageErr.message);
+        const fileRef = window.urStorage.ref().child(`profile_pictures/${userDocId}_${Date.now()}.${ext}`);
+        
+        // Wrap with a 2.5s timeout race so uninitialized buckets never cause background retries
+        const uploadTask = fileRef.put(file, { contentType: file.type });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => {
+          try { uploadTask.cancel(); } catch (e) {}
+          reject(new Error('Firebase Storage timeout (using direct cloud database storage)'));
+        }, 2500));
+
+        Promise.race([
+          uploadTask.then(snap => snap.ref.getDownloadURL()),
+          timeoutPromise
+        ]).then(async (cloudUrl) => {
+          if (cloudUrl) {
+            await this.saveProfilePhoto(cloudUrl);
+            console.log('🔥 Profile picture successfully offloaded to Firebase Storage:', cloudUrl);
+          }
+        }).catch(err => {
+          console.log('Firebase Storage notice:', err.message);
+        });
+      } catch (err) {
+        console.warn('Firebase Storage upload dispatch note:', err.message);
       }
     }
 
-    // 2. High-performance fallback: compress to high-resolution JPEG Data URL
-    if (!photoURL) {
-      photoURL = await this.compressImageToDataURL(file, 400, 400, 0.85);
-    }
-
-    return await this.saveProfilePhoto(photoURL);
+    return updatedUser;
   },
 
   // Save profile photo URL to user document and localStorage
@@ -247,6 +263,8 @@ const AuthEngine = {
 
     currentUser.photoURL = photoURL;
     currentUser.updatedAt = new Date().toISOString();
+
+    const userDocId = currentUser.id || (currentUser.email ? currentUser.email.replace(/[^a-zA-Z0-9_-]/g, '_') : 'user');
 
     // Update in stored users array
     const users = this.getUsers();
@@ -263,7 +281,7 @@ const AuthEngine = {
     // Sync to Cloud Firestore users collection
     if (window.urDb) {
       try {
-        await window.urDb.collection('users').doc(currentUser.id).set({
+        await window.urDb.collection('users').doc(userDocId).set({
           photoURL,
           updatedAt: currentUser.updatedAt
         }, { merge: true });
@@ -284,6 +302,8 @@ const AuthEngine = {
     currentUser.photoURL = '';
     currentUser.updatedAt = new Date().toISOString();
 
+    const userDocId = currentUser.id || (currentUser.email ? currentUser.email.replace(/[^a-zA-Z0-9_-]/g, '_') : 'user');
+
     const users = this.getUsers();
     const idx = users.findIndex(u => (u.id && u.id === currentUser.id) || (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
     if (idx >= 0) {
@@ -297,7 +317,7 @@ const AuthEngine = {
 
     if (window.urDb) {
       try {
-        await window.urDb.collection('users').doc(currentUser.id).set({
+        await window.urDb.collection('users').doc(userDocId).set({
           photoURL: '',
           updatedAt: currentUser.updatedAt
         }, { merge: true });
@@ -310,41 +330,45 @@ const AuthEngine = {
     return currentUser;
   },
 
-  // Compress image to optimized Data URL
-  compressImageToDataURL(file, maxWidth = 400, maxHeight = 400, quality = 0.85) {
+  // Compress image to optimized Data URL with square center-crop
+  compressImageToDataURL(file, maxWidth = 320, maxHeight = 320, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          let width = img.width;
-          let height = img.height;
+          const width = img.naturalWidth || img.width;
+          const height = img.naturalHeight || img.height;
 
+          // Square center-crop for a clean circular avatar
+          let sx = 0, sy = 0, sWidth = width, sHeight = height;
           if (width > height) {
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width = Math.round((width * maxHeight) / height);
-              height = maxHeight;
-            }
+            sx = Math.round((width - height) / 2);
+            sWidth = height;
+          } else if (height > width) {
+            sy = Math.round((height - width) / 2);
+            sHeight = width;
           }
 
           const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = maxWidth;
+          canvas.height = maxHeight;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const dataUrl = canvas.toDataURL('image/jpeg', quality);
-          resolve(dataUrl);
+          
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maxWidth, maxHeight);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          } else {
+            resolve(e.target.result);
+          }
         };
-        img.onerror = () => reject(new Error('Failed to load image file.'));
+        img.onerror = () => reject(new Error('Failed to parse the selected image file.'));
         img.src = e.target.result;
       };
-      reader.onerror = () => reject(new Error('Failed to read image file.'));
+      reader.onerror = () => reject(new Error('Failed to read the selected file.'));
       reader.readAsDataURL(file);
     });
   },
