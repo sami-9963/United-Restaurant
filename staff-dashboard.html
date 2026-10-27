@@ -71,6 +71,111 @@
       .printable-slip, .printable-slip * { visibility: visible; }
       .printable-slip { position: absolute; left: 0; top: 0; width: 100%; }
     }
+
+    /* Responsive Order Card Action Buttons */
+    .order-card-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .order-card-status-btns {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .order-card-status-btns:empty {
+      display: none;
+    }
+    .order-card-contact-btns {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .btn-customer-contact {
+      border-color: #22c55e !important;
+      color: #22c55e !important;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      word-break: break-word;
+    }
+    .btn-customer-contact:hover {
+      background: rgba(34, 197, 94, 0.15) !important;
+      color: #4ade80 !important;
+    }
+    .btn-kitchen-slip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      white-space: nowrap;
+    }
+    @media (max-width: 768px) {
+      .order-card {
+        padding: 1.15rem 1rem;
+        overflow: hidden;
+      }
+      .order-card-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+      .order-card-status-btns {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .order-card-status-btns .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .order-card-contact-btns {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: stretch;
+      }
+      .order-card-contact-btns .btn,
+      .order-card-contact-btns .btn-customer-contact {
+        flex: 1 1 180px;
+        justify-content: center;
+        text-align: center;
+        min-width: 0;
+      }
+      .order-card-contact-btns .btn-kitchen-slip {
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+    }
+    @media (max-width: 520px) {
+      .order-card {
+        padding: 1rem 0.85rem;
+      }
+      .order-card-contact-btns {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 0.5rem !important;
+      }
+      .order-card-contact-btns .btn,
+      .order-card-contact-btns .btn-customer-contact,
+      .order-card-contact-btns .btn-kitchen-slip {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+      }
+    }
   </style>
 </head>
 <body style="background: #060609;">
@@ -503,8 +608,8 @@
             </table>
 
             <!-- Dispatch & Action Buttons (Staff Order Status Progression) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.06);">
-              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <div class="order-card-actions">
+              <div class="order-card-status-btns">
                 ${order.status === 'Pending' ? `
                   <button class="btn btn-primary btn-sm" style="background: #eab308; border-color: #eab308; color: #000; font-weight: 700;" onclick="changeStaffOrderStatus('${order.id}', 'Preparing');">
                     <i class="fa-solid fa-fire-burner"></i> Accept & Start Preparing
@@ -527,11 +632,11 @@
                 ` : ''}
               </div>
 
-              <div style="display: flex; gap: 0.5rem;">
-                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color: #22c55e; color: #22c55e;" title="Message Customer on WhatsApp">
-                  <i class="fa-brands fa-whatsapp"></i> WhatsApp (${order.customerPhone})
+              <div class="order-card-contact-btns">
+                <a href="${waUrl}" target="_blank" class="btn btn-outline btn-sm btn-customer-contact" title="Message Customer on WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i> Customer (${order.customerPhone})
                 </a>
-                <button class="btn btn-outline btn-sm" onclick="printStaffSlip('${order.id}');" title="Print Kitchen Slip">
+                <button class="btn btn-outline btn-sm btn-kitchen-slip" onclick="printStaffSlip('${order.id}');" title="Print Kitchen Slip">
                   <i class="fa-solid fa-print"></i> Slip
                 </button>
               </div>

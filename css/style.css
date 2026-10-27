@@ -3014,6 +3014,60 @@ textarea.form-control {
   border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
+/* Order Card Responsive Actions & Dispatch Buttons */
+.order-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.order-card-status-btns {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.order-card-status-btns:empty {
+  display: none;
+}
+
+.order-card-contact-btns {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-customer-contact {
+  border-color: #22c55e !important;
+  color: #22c55e !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  word-break: break-word;
+}
+
+.btn-customer-contact:hover {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+}
+
+.btn-kitchen-slip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
 .cod-highlight-box {
   background: rgba(34, 197, 94, 0.08);
   border: 1px solid rgba(34, 197, 94, 0.25);
@@ -3235,6 +3289,91 @@ textarea.form-control {
   .admin-float-btn {
     padding: 0.35rem 0.75rem;
     font-size: 0.76rem;
+  }
+
+  /* Order Card Responsive Adjustments for Tablets & Mobile */
+  .order-card {
+    padding: 1.15rem 1rem;
+    overflow: hidden;
+  }
+
+  .order-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .order-card-status-btns {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .order-card-status-btns .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .order-card-contact-btns {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .order-card-contact-btns .btn,
+  .order-card-contact-btns .btn-customer-contact {
+    flex: 1 1 180px;
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .order-card-contact-btns .btn-kitchen-slip {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .order-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .order-card-footer > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .order-card-footer .btn {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .order-card {
+    padding: 1rem 0.85rem;
+  }
+
+  .order-card-contact-btns {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+  }
+
+  .order-card-contact-btns .btn,
+  .order-card-contact-btns .btn-customer-contact,
+  .order-card-contact-btns .btn-kitchen-slip {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
   }
 }
 
