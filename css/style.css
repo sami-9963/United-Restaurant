@@ -3154,7 +3154,8 @@ textarea.form-control {
 @media (max-width: 640px) {
   /* Site Header & Brand */
   .site-header {
-    height: 66px;
+    height: auto;
+    min-height: 66px;
   }
   .navbar {
     height: 66px;

@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kitchen & Manager Order Dashboard — United Restaurant</title>
   <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +21,12 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
+    .site-header {
+      height: auto !important;
+      min-height: 60px;
+      border-bottom: none !important;
+      box-shadow: none !important;
+    }
     .admin-metrics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -180,8 +189,8 @@
 <body style="background: #060609;">
 
   <!-- Header -->
-  <header class="site-header" style="background: rgba(10,10,14,0.95); border-bottom: 1px solid rgba(220,38,38,0.3);">
-    <div class="container header-container">
+  <header class="site-header" style="background: rgba(10,10,14,0.95); border-bottom: none;">
+    <div class="container header-container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem 1.25rem;">
       <a href="index.html" class="brand-logo">
         <div class="logo-crest"><i class="fa-solid fa-crown"></i></div>
         <div class="logo-text">
@@ -192,7 +201,7 @@
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <span class="badge badge-gold" id="kitchenLiveClock" style="font-family: monospace; font-size: 0.85rem;"></span>
-        <a href="index.html" class="btn btn-outline btn-sm">
+        <a href="index.html" class="btn btn-outline btn-sm" id="btnNavHome" title="Back to Homepage">
           <i class="fa-solid fa-house"></i> Home
         </a>
       </div>
@@ -530,6 +539,13 @@
       checkAdminAccess();
       // Periodic fallback sync check every 6s
       setInterval(pollOrders, 6000);
+
+      // Enforce Home button routing to homepage
+      const navHome = document.getElementById('btnNavHome');
+      if (navHome) {
+        navHome.href = 'index.html';
+        navHome.innerHTML = '<i class="fa-solid fa-house"></i> Home';
+      }
     });
 
     let currentAdminMainTab = 'orders';
