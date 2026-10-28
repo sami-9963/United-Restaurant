@@ -537,13 +537,13 @@ const AuthEngine = {
                     </div>
                   </div>
                 </div>
-                <a href="admin-orders.html" class="user-dropdown-item text-gold" style="font-weight: 700;">
+                <a href="admin-orders.html?v=3.3" class="user-dropdown-item text-gold" style="font-weight: 700;">
                   <i class="fa-solid fa-clipboard-list text-gold"></i> Kitchen Live Orders Terminal
                 </a>
-                <a href="admin-orders.html#users" class="user-dropdown-item" style="color: #c7d2fe; font-weight: 600;">
+                <a href="admin-orders.html?v=3.3#users" class="user-dropdown-item" style="color: #c7d2fe; font-weight: 600;">
                   <i class="fa-solid fa-users-gear text-gold"></i> User Management & Roles
                 </a>
-                <a href="admin-orders.html#menu" class="user-dropdown-item" style="color: #fde047;">
+                <a href="admin-orders.html?v=3.3#menu" class="user-dropdown-item" style="color: #fde047;">
                   <i class="fa-solid fa-pen-to-square text-gold"></i> Restaurant Menu Editor
                 </a>
                 <a href="profile.html" class="user-dropdown-item">
@@ -684,15 +684,15 @@ const AuthEngine = {
               </div>
 
               <div class="mobile-owner-links">
-                <a href="admin-orders.html" class="mobile-admin-btn gold-link">
+                <a href="admin-orders.html?v=3.3" class="mobile-admin-btn gold-link">
                   <i class="fa-solid fa-clipboard-list text-gold"></i>
                   <span>Kitchen Live Orders Terminal</span>
                 </a>
-                <a href="admin-orders.html#users" class="mobile-admin-btn" style="color: #c7d2fe;">
+                <a href="admin-orders.html?v=3.3#users" class="mobile-admin-btn" style="color: #c7d2fe;">
                   <i class="fa-solid fa-users-gear text-gold"></i>
                   <span>User Management & Roles</span>
                 </a>
-                <a href="admin-orders.html#menu" class="mobile-admin-btn" style="color: #fde047;">
+                <a href="admin-orders.html?v=3.3#menu" class="mobile-admin-btn" style="color: #fde047;">
                   <i class="fa-solid fa-pen-to-square text-gold"></i>
                   <span>Restaurant Menu Editor</span>
                 </a>
@@ -828,7 +828,7 @@ const AuthEngine = {
         <span class="badge badge-gold" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
           <i class="fa-solid fa-crown"></i> OWNER
         </span>
-        <a href="admin-orders.html" class="admin-float-btn">
+        <a href="admin-orders.html?v=3.3" class="admin-float-btn">
           <i class="fa-solid fa-bell"></i> Kitchen Orders
           <span class="admin-badge-count">${pendingCount}</span>
         </a>
@@ -849,7 +849,7 @@ const AuthEngine = {
         <span class="badge badge-staff" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
           <i class="fa-solid fa-shield-halved"></i> STAFF
         </span>
-        <a href="staff-dashboard.html" class="admin-float-btn" style="background: rgba(99, 102, 241, 0.2); border-color: #6366f1;">
+        <a href="staff-dashboard.html?v=3.3" class="admin-float-btn" style="background: rgba(99, 102, 241, 0.2); border-color: #6366f1;">
           <i class="fa-solid fa-bell"></i> Live Orders
           <span class="admin-badge-count">${pendingCount}</span>
         </a>
