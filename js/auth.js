@@ -870,6 +870,36 @@ const AuthEngine = {
   }
 };
 
+// Admin & Staff Header Auto-Enforce (Home button & borderless header)
+(function enforceAdminHeaderHome() {
+  function applyHeaderFix() {
+    const headers = document.querySelectorAll('.site-header, header');
+    headers.forEach(h => {
+      h.style.setProperty('border-bottom', 'none', 'important');
+    });
+
+    const headerLinks = document.querySelectorAll('.site-header a, header a');
+    headerLinks.forEach(a => {
+      const text = (a.textContent || '').trim().toLowerCase();
+      const href = a.getAttribute('href') || '';
+      if (text.includes('customer menu') || href.includes('order-online.html')) {
+        if (a.classList.contains('btn') || a.closest('.header-container')) {
+          a.setAttribute('href', 'index.html');
+          a.innerHTML = '<i class="fa-solid fa-house"></i> Home';
+          a.title = 'Back to Homepage';
+        }
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyHeaderFix);
+  } else {
+    applyHeaderFix();
+  }
+  setInterval(applyHeaderFix, 800);
+})();
+
 // ==========================================
 // 2. ORDER DATABASE & MANAGEMENT API
 // ==========================================

@@ -169,3 +169,35 @@ function showToast(message) {
     toast.classList.remove('show');
   }, 4000);
 }
+
+/* 6. Admin & Staff Header Auto-Enforce (Home button & borderless header) */
+(function enforceAdminHeaderHome() {
+  function applyHeaderFix() {
+    // Remove red border-bottom from header
+    const headers = document.querySelectorAll('.site-header, header');
+    headers.forEach(h => {
+      h.style.setProperty('border-bottom', 'none', 'important');
+    });
+
+    // Transform any "Customer Menu" link in header to "Home"
+    const headerLinks = document.querySelectorAll('.site-header a, header a');
+    headerLinks.forEach(a => {
+      const text = (a.textContent || '').trim().toLowerCase();
+      const href = a.getAttribute('href') || '';
+      if (text.includes('customer menu') || href.includes('order-online.html')) {
+        if (a.classList.contains('btn') || a.closest('.header-container')) {
+          a.setAttribute('href', 'index.html');
+          a.innerHTML = '<i class="fa-solid fa-house"></i> Home';
+          a.title = 'Back to Homepage';
+        }
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyHeaderFix);
+  } else {
+    applyHeaderFix();
+  }
+  setInterval(applyHeaderFix, 800);
+})();
