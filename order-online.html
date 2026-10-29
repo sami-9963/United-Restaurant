@@ -10,7 +10,157 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=4.0">
+
+  <!-- Direct Embedded Mobile Cart Styles (Guaranteed immediate rendering across all devices) -->
+  <style>
+    @media (max-width: 1024px) {
+      .order-layout {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 0 0.85rem !important;
+      }
+
+      .order-items-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 1.25rem !important;
+        width: 100% !important;
+      }
+
+      #cart-section {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-bottom: 6rem !important;
+      }
+
+      .cart-panel {
+        position: static !important;
+        padding: 1.15rem 0.85rem !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      .cart-header {
+        width: 100% !important;
+        gap: 0.5rem !important;
+      }
+
+      .cart-header h3 {
+        font-size: 1.15rem !important;
+        min-width: 0 !important;
+      }
+
+      .cart-badge-count {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+
+      .cart-items-list {
+        width: 100% !important;
+        overflow-x: hidden !important;
+        padding-right: 0 !important;
+      }
+
+      .cart-item-row {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 0.65rem 0.6rem !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      .cart-item-info {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+      }
+
+      .cart-item-name {
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.3 !important;
+        margin-bottom: 0.15rem !important;
+      }
+
+      .cart-qty-controls {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+        flex-shrink: 0 !important;
+      }
+
+      .btn-qty {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 0.8rem !important;
+        touch-action: manipulation !important;
+      }
+
+      .cart-item-total {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        text-align: right !important;
+        min-width: 44px !important;
+        font-size: 0.92rem !important;
+      }
+
+      .cart-summary {
+        width: 100% !important;
+      }
+
+      .cart-summary-line, .cart-total-line {
+        width: 100% !important;
+      }
+
+      .cart-total-price {
+        font-size: 1.35rem !important;
+        white-space: nowrap !important;
+      }
+
+      .toast-msg {
+        top: 1rem !important;
+        bottom: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translate(-50%, -100px) !important;
+        width: calc(100% - 2rem) !important;
+        max-width: 420px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.85rem !important;
+        z-index: 99999 !important;
+      }
+
+      .toast-msg.show {
+        transform: translate(-50%, 0) !important;
+      }
+
+      .admin-floating-bar {
+        bottom: 4.8rem !important;
+        right: 0.75rem !important;
+        padding: 0.35rem 0.5rem 0.35rem 0.75rem !important;
+        gap: 0.45rem !important;
+        max-width: calc(100vw - 1.5rem) !important;
+      }
+
+      .admin-float-btn {
+        padding: 0.32rem 0.65rem !important;
+        font-size: 0.72rem !important;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -363,10 +513,10 @@
   <!-- Google Firebase Cloud SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js?v=2.2"></script>
-  <script src="js/menu-data.js?v=2.2"></script>
-  <script src="js/main.js?v=2.2"></script>
-  <script src="js/auth.js?v=2.2"></script>
+  <script src="js/firebase-config.js?v=4.0"></script>
+  <script src="js/menu-data.js?v=4.0"></script>
+  <script src="js/main.js?v=4.0"></script>
+  <script src="js/auth.js?v=4.0"></script>
 
   <!-- Complete Online Ordering JavaScript Engine -->
   <script>
