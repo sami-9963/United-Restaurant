@@ -504,15 +504,16 @@
         cart.forEach(item => {
           const row = document.createElement('div');
           row.className = 'cart-item-row';
+          const safeName = (typeof AuthEngine !== 'undefined') ? AuthEngine.escapeHtml(item.name) : item.name;
           row.innerHTML = `
             <div class="cart-item-info">
-              <div class="cart-item-name">${item.name}</div>
+              <div class="cart-item-name">${safeName}</div>
               <div class="cart-item-unit-price">৳${item.price} each</div>
             </div>
             <div class="cart-qty-controls">
-              <button class="btn-qty" onclick="updateCartQty('${item.id}', -1);" aria-label="Decrease quantity">-</button>
+              <button class="btn-qty" onclick="updateCartQty('${item.id}', -1);" aria-label="Decrease quantity" title="Decrease quantity">-</button>
               <span class="cart-qty-val">${item.qty}</span>
-              <button class="btn-qty" onclick="updateCartQty('${item.id}', 1);" aria-label="Increase quantity">+</button>
+              <button class="btn-qty" onclick="updateCartQty('${item.id}', 1);" aria-label="Increase quantity" title="Increase quantity">+</button>
             </div>
             <div class="cart-item-total">
               ৳${item.price * item.qty}

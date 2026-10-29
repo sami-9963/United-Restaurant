@@ -821,12 +821,16 @@ const AuthEngine = {
         document.body.appendChild(bar);
       }
 
-      const orders = OrderEngine.getAllOrders();
+      const orders = (typeof OrderEngine !== 'undefined') ? OrderEngine.getAllOrders() : [];
       const pendingCount = orders.filter(o => o.status === 'Pending').length;
+      const isMinimized = bar.classList.contains('minimized');
 
       bar.innerHTML = `
-        <span class="badge badge-gold" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
-          <i class="fa-solid fa-crown"></i> OWNER
+        <button type="button" class="admin-float-toggle" onclick="AuthEngine.toggleAdminFloatingBar(event);" title="${isMinimized ? 'Expand bar' : 'Minimize bar'}" aria-label="Toggle floating quick bar">
+          <i class="fa-solid ${isMinimized ? 'fa-chevron-left' : 'fa-chevron-right'}"></i>
+        </button>
+        <span class="badge badge-gold admin-owner-text" style="font-size: 0.72rem; padding: 0.25rem 0.6rem; cursor: pointer;" onclick="AuthEngine.toggleAdminFloatingBar(event);" title="Click to minimize/expand">
+          <i class="fa-solid fa-crown"></i> <span class="admin-role-label">OWNER</span>
         </span>
         <a href="admin-orders.html?v=3.3" class="admin-float-btn">
           <i class="fa-solid fa-bell"></i> Kitchen Orders
@@ -842,12 +846,16 @@ const AuthEngine = {
         document.body.appendChild(bar);
       }
 
-      const orders = OrderEngine.getAllOrders();
+      const orders = (typeof OrderEngine !== 'undefined') ? OrderEngine.getAllOrders() : [];
       const pendingCount = orders.filter(o => o.status === 'Pending').length;
+      const isMinimized = bar.classList.contains('minimized');
 
       bar.innerHTML = `
-        <span class="badge badge-staff" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;">
-          <i class="fa-solid fa-shield-halved"></i> STAFF
+        <button type="button" class="admin-float-toggle" onclick="AuthEngine.toggleAdminFloatingBar(event);" title="${isMinimized ? 'Expand bar' : 'Minimize bar'}" aria-label="Toggle floating quick bar">
+          <i class="fa-solid ${isMinimized ? 'fa-chevron-left' : 'fa-chevron-right'}"></i>
+        </button>
+        <span class="badge badge-staff admin-owner-text" style="font-size: 0.72rem; padding: 0.25rem 0.6rem; cursor: pointer;" onclick="AuthEngine.toggleAdminFloatingBar(event);" title="Click to minimize/expand">
+          <i class="fa-solid fa-shield-halved"></i> <span class="admin-role-label">STAFF</span>
         </span>
         <a href="staff-dashboard.html?v=3.3" class="admin-float-btn" style="background: rgba(99, 102, 241, 0.2); border-color: #6366f1;">
           <i class="fa-solid fa-bell"></i> Live Orders
@@ -857,6 +865,25 @@ const AuthEngine = {
       bar.style.display = 'flex';
     } else {
       if (bar) bar.style.display = 'none';
+    }
+  },
+
+  toggleAdminFloatingBar(e) {
+    if (e) {
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+    }
+    const bar = document.getElementById('adminFloatingBar');
+    if (!bar) return;
+    bar.classList.toggle('minimized');
+    const toggleBtn = bar.querySelector('.admin-float-toggle');
+    const icon = bar.querySelector('.admin-float-toggle i');
+    const isMinimized = bar.classList.contains('minimized');
+    if (icon) {
+      icon.className = `fa-solid ${isMinimized ? 'fa-chevron-left' : 'fa-chevron-right'}`;
+    }
+    if (toggleBtn) {
+      toggleBtn.title = isMinimized ? 'Expand bar' : 'Minimize bar';
     }
   },
 
