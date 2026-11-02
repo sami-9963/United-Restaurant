@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=4.1">
+  <link rel="stylesheet" href="css/style.css?v=4.2">
 
   <!-- Direct Embedded Mobile Cart Styles (Guaranteed immediate rendering across all devices) -->
   <style>
@@ -187,6 +187,172 @@
         font-size: 0.72rem !important;
       }
     }
+
+    /* Floating Collapsible Mobile Cart Widget */
+    .floating-mobile-cart {
+      display: none;
+      position: fixed;
+      right: 0;
+      top: 36%;
+      z-index: 9990;
+      align-items: center;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.8));
+    }
+
+    @media (max-width: 1024px) {
+      .floating-mobile-cart {
+        display: flex;
+      }
+    }
+
+    .floating-mobile-cart.minimized {
+      transform: translateX(calc(100% - 32px));
+    }
+
+    .floating-cart-toggle {
+      background: #12121a;
+      border: 1px solid var(--border-red);
+      border-right: none;
+      color: var(--text-white);
+      width: 32px;
+      height: 48px;
+      border-radius: 12px 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      box-shadow: -4px 0 14px rgba(0, 0, 0, 0.6);
+      transition: background 0.2s, color 0.2s;
+      z-index: 2;
+      outline: none;
+    }
+
+    .floating-cart-toggle:hover,
+    .floating-cart-toggle:active {
+      background: var(--red-primary);
+      color: #fff;
+    }
+
+    .floating-cart-toggle i {
+      font-size: 0.85rem;
+      transition: transform 0.3s;
+    }
+
+    .floating-cart-content {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(14, 14, 20, 0.96);
+      border: 1px solid var(--border-red);
+      border-right: none;
+      border-radius: 14px 0 0 14px;
+      padding: 0.55rem 0.95rem 0.55rem 0.65rem;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 20px var(--red-glow-subtle);
+      transition: background 0.2s, transform 0.15s;
+      user-select: none;
+    }
+
+    .floating-cart-content:active {
+      transform: scale(0.98);
+    }
+
+    .floating-cart-icon-box {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      background: rgba(229, 9, 20, 0.18);
+      border: 1px solid var(--border-red);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1rem;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+
+    .floating-cart-icon-box.cart-bounce {
+      animation: cartIconBounce 0.45s ease-out;
+    }
+
+    @keyframes cartIconBounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .floating-cart-badge {
+      position: absolute;
+      top: -4px;
+      right: -5px;
+      background: var(--red-primary);
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.08rem 0.38rem;
+      border-radius: 50px;
+      border: 2px solid #0e0e14;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .floating-cart-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .floating-cart-title {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+
+    .floating-cart-price {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--red-primary);
+      white-space: nowrap;
+    }
+
+    .floating-cart-arrow {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      margin-left: 0.15rem;
+      transition: transform 0.2s, color 0.2s;
+    }
+
+    .floating-cart-content:hover .floating-cart-arrow {
+      color: #fff;
+      transform: translateY(2px);
+    }
+
+    @keyframes cartPulseGlow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.7), 0 15px 40px rgba(0, 0, 0, 0.8);
+        border-color: #ff3344;
+      }
+      50% {
+        box-shadow: 0 0 35px 10px rgba(229, 9, 20, 0.85), 0 15px 40px rgba(0, 0, 0, 0.8);
+        border-color: #ff4d58;
+      }
+      100% {
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 25px var(--red-glow-subtle);
+        border-color: var(--border-red);
+      }
+    }
+
+    .cart-panel-highlight {
+      animation: cartPulseGlow 1.4s ease-out;
+    }
   </style>
 </head>
 <body>
@@ -348,6 +514,34 @@
 
     </div>
   </section>
+
+  <!-- Floating Collapsible Mobile Cart Widget -->
+  <div id="floatingMobileCart" class="floating-mobile-cart" aria-label="Quick Order Cart Summary">
+    <button type="button" 
+            class="floating-cart-toggle" 
+            id="floatingCartToggle" 
+            onclick="toggleFloatingCart(event);" 
+            aria-label="Toggle floating cart bubble" 
+            title="Minimize / Expand Cart">
+      <i class="fa-solid fa-chevron-right" id="floatingCartToggleIcon"></i>
+    </button>
+    <div class="floating-cart-content" 
+         onclick="scrollToCart();" 
+         role="button" 
+         tabindex="0" 
+         onkeydown="if(event.key==='Enter'||event.key===' '){scrollToCart();event.preventDefault();}"
+         title="Tap to view full order">
+      <div class="floating-cart-icon-box">
+        <i class="fa-solid fa-basket-shopping"></i>
+        <span class="floating-cart-badge" id="floatingCartCount">0</span>
+      </div>
+      <div class="floating-cart-meta">
+        <div class="floating-cart-title">Your Order</div>
+        <div class="floating-cart-price" id="floatingCartTotal">৳0</div>
+      </div>
+      <i class="fa-solid fa-angle-down floating-cart-arrow"></i>
+    </div>
+  </div>
 
   <!-- Checkout Modal (Order Placement Form) -->
   <div class="checkout-modal-backdrop" id="checkoutModal">
@@ -632,6 +826,14 @@
 
       renderCartUI();
       showToast(`Added ${product.name} to cart!`);
+
+      // Gentle bounce on floating cart icon
+      const floatBox = document.querySelector('.floating-cart-icon-box');
+      if (floatBox) {
+        floatBox.classList.remove('cart-bounce');
+        void floatBox.offsetWidth;
+        floatBox.classList.add('cart-bounce');
+      }
     }
 
     // Update Item Quantity
@@ -664,6 +866,12 @@
       subtotalEl.textContent = `৳${subtotalPrice}`;
       totalEl.textContent = `৳${subtotalPrice}`;
       if (navTotalEl) navTotalEl.textContent = `৳${subtotalPrice}`;
+
+      // Update Floating Mobile Cart Widget
+      const floatCount = document.getElementById('floatingCartCount');
+      const floatTotal = document.getElementById('floatingCartTotal');
+      if (floatCount) floatCount.textContent = totalItems;
+      if (floatTotal) floatTotal.textContent = `৳${subtotalPrice}`;
 
       if (cart.length === 0) {
         listEl.innerHTML = `
@@ -701,11 +909,30 @@
       }
     }
 
-    // Scroll directly to cart on mobile
+    // Toggle Collapsible Floating Mobile Cart Widget (Minimize / Expand)
+    function toggleFloatingCart(e) {
+      if (e) e.stopPropagation();
+      const widget = document.getElementById('floatingMobileCart');
+      const icon = document.getElementById('floatingCartToggleIcon');
+      if (!widget) return;
+      const isMin = widget.classList.toggle('minimized');
+      if (icon) {
+        icon.className = isMin ? 'fa-solid fa-chevron-left' : 'fa-solid fa-chevron-right';
+      }
+    }
+
+    // Scroll directly to cart on mobile with highlight animation
     function scrollToCart() {
       const cartSection = document.getElementById('cart-section');
       if (cartSection) {
         cartSection.scrollIntoView({ behavior: 'smooth' });
+        const panel = cartSection.querySelector('.cart-panel');
+        if (panel) {
+          panel.classList.remove('cart-panel-highlight');
+          void panel.offsetWidth;
+          panel.classList.add('cart-panel-highlight');
+          setTimeout(() => panel.classList.remove('cart-panel-highlight'), 1500);
+        }
       }
     }
 
