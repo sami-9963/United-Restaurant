@@ -2846,6 +2846,61 @@ textarea.form-control {
   animation: cartPulseGlow 1.4s ease-out;
 }
 
+/* ==========================================
+   GO TO TOP BUTTON
+   ========================================== */
+.go-to-top-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 1.5rem 0 3.5rem;
+  margin-top: 0.5rem;
+  box-sizing: border-box;
+}
+
+.btn-go-to-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: rgba(18, 18, 24, 0.9);
+  border: 1px solid var(--border-red);
+  color: var(--text-white);
+  padding: 0.75rem 1.6rem;
+  border-radius: 50px;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 15px var(--red-glow-subtle);
+  outline: none;
+  touch-action: manipulation;
+}
+
+.btn-go-to-top i {
+  color: var(--red-primary);
+  font-size: 0.95rem;
+  transition: transform 0.25s ease, color 0.2s ease;
+}
+
+.btn-go-to-top:hover,
+.btn-go-to-top:active {
+  background: var(--red-primary);
+  color: #fff;
+  border-color: var(--red-primary);
+  box-shadow: 0 6px 20px var(--red-glow);
+  transform: translateY(-2px);
+}
+
+.btn-go-to-top:hover i,
+.btn-go-to-top:active i {
+  color: #fff;
+  transform: translateY(-3px);
+}
+
 /* Modal for Checkout */
 .checkout-modal-backdrop {
   position: fixed;
@@ -3585,7 +3640,7 @@ textarea.form-control {
   }
 
   #cart-section {
-    margin-bottom: 5.5rem; /* Ensures the checkout button easily scrolls well above the bottom floating bar */
+    margin-bottom: 1.5rem;
   }
 
   .cart-header h3 {
