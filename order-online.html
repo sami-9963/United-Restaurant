@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=4.0">
+  <link rel="stylesheet" href="css/style.css?v=4.1">
 
   <!-- Direct Embedded Mobile Cart Styles (Guaranteed immediate rendering across all devices) -->
   <style>
@@ -20,6 +20,33 @@
         gap: 1.5rem !important;
         width: 100% !important;
         max-width: 100% !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .cuisine-tabs {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        justify-content: flex-start !important;
+        gap: 0.5rem !important;
+        padding: 0.25rem 0.25rem 0.75rem !important;
+        scrollbar-width: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      .cuisine-tabs::-webkit-scrollbar {
+        display: none !important;
+      }
+
+      .cuisine-tab-btn {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        padding: 0.5rem 0.9rem !important;
+        font-size: 0.8rem !important;
       }
     }
 
