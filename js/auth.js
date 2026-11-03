@@ -514,34 +514,14 @@ const AuthEngine = {
     const users = this.getUsers();
     const existingUser = users.find(u => (u.email || '').toLowerCase() === email);
 
-    // If user exists in database, ensure they are registered in Firebase Auth backend first
-    if (existingUser && existingUser.password) {
-      try {
-        await authInstance.createUserWithEmailAndPassword(email, existingUser.password);
-        console.log('🔥 Provisioned user in Firebase Auth backend:', email);
-      } catch (provisionErr) {
-        if (provisionErr.code !== 'auth/email-already-in-use') {
-          console.warn('Firebase user provisioning note:', provisionErr.message);
-        }
-      }
-    } else if (window.urDb) {
-      try {
-        const querySnap = await window.urDb.collection('users').where('email', '==', email).limit(1).get();
-        if (!querySnap.empty) {
-          const dbUser = querySnap.docs[0].data();
-          if (dbUser && dbUser.password) {
-            try {
-              await authInstance.createUserWithEmailAndPassword(email, dbUser.password);
-              console.log('🔥 Provisioned Firestore user in Firebase Auth backend:', email);
-            } catch (pErr) {
-              if (pErr.code !== 'auth/email-already-in-use') {
-                console.warn('Firestore user provision note:', pErr.message);
-              }
-            }
-          }
-        }
-      } catch (dbErr) {
-        console.warn('Firestore query note during reset:', dbErr.message);
+    // Ensure user is registered in Firebase Auth backend so Email Enumeration Protection never drops the email
+    try {
+      const passwordToUse = existingUser?.password || ('UR_' + Math.random().toString(36).substring(2, 10) + '!9');
+      await authInstance.createUserWithEmailAndPassword(email, passwordToUse);
+      console.log('🔥 Provisioned account in Firebase Auth backend:', email);
+    } catch (provisionErr) {
+      if (provisionErr.code !== 'auth/email-already-in-use') {
+        console.warn('Firebase user provisioning note:', provisionErr.message);
       }
     }
 
