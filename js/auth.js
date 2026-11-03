@@ -514,6 +514,37 @@ const AuthEngine = {
     const users = this.getUsers();
     const existingUser = users.find(u => (u.email || '').toLowerCase() === email);
 
+    // If user exists in database, ensure they are registered in Firebase Auth backend first
+    if (existingUser && existingUser.password) {
+      try {
+        await authInstance.createUserWithEmailAndPassword(email, existingUser.password);
+        console.log('🔥 Provisioned user in Firebase Auth backend:', email);
+      } catch (provisionErr) {
+        if (provisionErr.code !== 'auth/email-already-in-use') {
+          console.warn('Firebase user provisioning note:', provisionErr.message);
+        }
+      }
+    } else if (window.urDb) {
+      try {
+        const querySnap = await window.urDb.collection('users').where('email', '==', email).limit(1).get();
+        if (!querySnap.empty) {
+          const dbUser = querySnap.docs[0].data();
+          if (dbUser && dbUser.password) {
+            try {
+              await authInstance.createUserWithEmailAndPassword(email, dbUser.password);
+              console.log('🔥 Provisioned Firestore user in Firebase Auth backend:', email);
+            } catch (pErr) {
+              if (pErr.code !== 'auth/email-already-in-use') {
+                console.warn('Firestore user provision note:', pErr.message);
+              }
+            }
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Firestore query note during reset:', dbErr.message);
+      }
+    }
+
     try {
       await authInstance.sendPasswordResetEmail(email);
       console.log('🔥 Password reset email dispatched via Firebase Auth to:', email);
