@@ -373,6 +373,180 @@ const AuthEngine = {
     });
   },
 
+  // Change Password with secure re-authentication
+  async changePassword({ currentPassword, newPassword, confirmNewPassword }) {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('You must be logged in to change your password.');
+    }
+
+    currentPassword = (currentPassword || '').trim();
+    newPassword = (newPassword || '').trim();
+    confirmNewPassword = (confirmNewPassword || '').trim();
+
+    // 1. Validation
+    if (!currentPassword) {
+      throw new Error('Please enter your current password.');
+    }
+    if (!newPassword) {
+      throw new Error('Please enter a new password.');
+    }
+    if (newPassword.length < 8) {
+      throw new Error('New password must be at least 8 characters long.');
+    }
+    if (newPassword !== confirmNewPassword) {
+      throw new Error('The new password and confirmation password do not match.');
+    }
+    if (currentPassword === newPassword) {
+      throw new Error('New password must be different from your current password.');
+    }
+
+    // 2. Secure Re-authentication
+    // Re-authenticate against local and cloud database records
+    const users = this.getUsers();
+    const userIndex = users.findIndex(u => 
+      (u.id && u.id === currentUser.id) || 
+      (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+
+    if (userIndex >= 0) {
+      const storedPassword = users[userIndex].password;
+      if (storedPassword && storedPassword !== currentPassword) {
+        throw new Error('Current password is incorrect. Re-authentication failed.');
+      }
+    }
+
+    // Re-authenticate with Firebase Authentication (Backend Provider)
+    if (window.urAuth) {
+      try {
+        let fbUser = window.urAuth.currentUser;
+        
+        // If no active Firebase Auth session, authenticate using email & current password
+        if (!fbUser) {
+          try {
+            const cred = await window.urAuth.signInWithEmailAndPassword(currentUser.email, currentPassword);
+            fbUser = cred.user;
+          } catch (signInErr) {
+            console.warn('Firebase Auth sign-in during re-auth:', signInErr.code, signInErr.message);
+            if (signInErr.code === 'auth/wrong-password' || signInErr.code === 'auth/invalid-credential') {
+              throw new Error('Current password is incorrect. Re-authentication failed.');
+            }
+            if (signInErr.code === 'auth/user-not-found') {
+              try {
+                const newCred = await window.urAuth.createUserWithEmailAndPassword(currentUser.email, currentPassword);
+                fbUser = newCred.user;
+              } catch (createErr) {
+                console.warn('Firebase Auth provisioning during reauth note:', createErr.message);
+              }
+            }
+          }
+        } else {
+          // Re-authenticate existing Firebase Auth session using EmailAuthProvider
+          if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth.EmailAuthProvider) {
+            const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+            await fbUser.reauthenticateWithCredential(credential);
+          }
+        }
+
+        // Update password in Firebase Auth backend
+        if (fbUser) {
+          try {
+            await fbUser.updatePassword(newPassword);
+            console.log('🔥 Password successfully updated in Firebase Auth backend for:', currentUser.email);
+          } catch (fbPassErr) {
+            console.warn('Firebase Auth updatePassword note:', fbPassErr.message);
+            if (fbPassErr.code === 'auth/requires-recent-login' && typeof firebase !== 'undefined' && firebase.auth) {
+              const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+              await fbUser.reauthenticateWithCredential(credential);
+              await fbUser.updatePassword(newPassword);
+            }
+          }
+        }
+      } catch (authErr) {
+        console.warn('Firebase Auth re-authentication note:', authErr);
+        if (authErr.message && authErr.message.includes('Current password is incorrect')) {
+          throw authErr;
+        }
+        if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+          throw new Error('Current password is incorrect. Re-authentication failed.');
+        }
+      }
+    }
+
+    // 3. Update password in the database
+    const updatedAt = new Date().toISOString();
+
+    // Update persistent user store
+    if (userIndex >= 0) {
+      users[userIndex].password = newPassword;
+      users[userIndex].updatedAt = updatedAt;
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+
+    // Update Google Cloud Firestore database
+    if (window.urDb && currentUser.id) {
+      try {
+        await window.urDb.collection('users').doc(currentUser.id).set({
+          password: newPassword,
+          updatedAt: updatedAt
+        }, { merge: true });
+        console.log('🔥 Password updated in Cloud Firestore database for:', currentUser.email);
+      } catch (dbErr) {
+        console.warn('Cloud Firestore password update note:', dbErr.message);
+      }
+    }
+
+    return { success: true, message: 'Password updated successfully!' };
+  },
+
+  // Send automated Password Reset Email via Firebase Auth backend
+  async sendPasswordReset(email) {
+    email = (email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    const authInstance = window.urAuth || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth() : null);
+    if (!authInstance) {
+      throw new Error('Firebase Authentication is initializing. Please try again in a few moments.');
+    }
+
+    const users = this.getUsers();
+    const existingUser = users.find(u => (u.email || '').toLowerCase() === email);
+
+    try {
+      await authInstance.sendPasswordResetEmail(email);
+      console.log('🔥 Password reset email dispatched via Firebase Auth to:', email);
+      return { success: true, email };
+    } catch (err) {
+      console.warn('Firebase sendPasswordResetEmail note:', err.code, err.message);
+
+      // If user exists in database but not in Firebase Auth yet, provision and send reset
+      if (err.code === 'auth/user-not-found' && existingUser && existingUser.password) {
+        try {
+          await authInstance.createUserWithEmailAndPassword(email, existingUser.password);
+          await authInstance.sendPasswordResetEmail(email);
+          console.log('🔥 Password reset email dispatched after provisioning Firebase user for:', email);
+          return { success: true, email };
+        } catch (innerErr) {
+          console.warn('Firebase provision & reset note:', innerErr.message);
+        }
+      }
+
+      if (err.code === 'auth/user-not-found') {
+        throw new Error('No registered account found with this email address. Please check your spelling or sign up.');
+      } else if (err.code === 'auth/invalid-email') {
+        throw new Error('Please enter a valid email address.');
+      } else if (err.code === 'auth/too-many-requests') {
+        throw new Error('Too many requests. Please wait a few moments before requesting another reset email.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        throw new Error('Email/Password provider is not yet enabled in the Firebase Console. Please enable Authentication > Sign-in method > Email/Password.');
+      } else {
+        throw new Error(err.message || 'Failed to dispatch password reset email. Please try again.');
+      }
+    }
+  },
+
   // Sign up new user
   signUp({ name, email, password, phone = '', address = '' }) {
     name = (name || '').trim();
@@ -428,6 +602,17 @@ const AuthEngine = {
         .catch(err => console.warn('Cloud user sync note:', err.message));
     }
 
+    // Sync user account to Firebase Authentication backend
+    if (window.urAuth) {
+      window.urAuth.createUserWithEmailAndPassword(email, password)
+        .then(() => console.log('🔥 User created in Firebase Auth backend:', email))
+        .catch(err => {
+          if (err.code !== 'auth/email-already-in-use') {
+            console.warn('Firebase Auth user creation note:', err.message);
+          }
+        });
+    }
+
     // Auto-login after signup
     this.setCurrentUser(userObj);
     return userObj;
@@ -460,6 +645,19 @@ const AuthEngine = {
     }
 
     this.setCurrentUser(user);
+
+    // Keep Firebase Auth session active in background
+    if (window.urAuth) {
+      window.urAuth.signInWithEmailAndPassword(email, password)
+        .then(() => console.log('🔥 Active Firebase Auth session established for:', email))
+        .catch(signInErr => {
+          if (signInErr.code === 'auth/user-not-found') {
+            window.urAuth.createUserWithEmailAndPassword(email, password)
+              .catch(e => console.warn('Firebase Auth user auto-provision note:', e.message));
+          }
+        });
+    }
+
     return user;
   },
 
@@ -1157,7 +1355,10 @@ function injectAuthModalDOM() {
             <input type="email" id="loginEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
           </div>
           <div class="form-group" style="margin-bottom: 1.25rem;">
-            <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-lock"></i> Password</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label class="form-label" style="font-size: 0.85rem; margin-bottom: 0;"><i class="fa-solid fa-lock"></i> Password</label>
+              <a href="javascript:void(0)" onclick="switchAuthMode('forgot');" style="font-size: 0.8rem; color: var(--gold-accent); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+            </div>
             <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
@@ -1201,6 +1402,34 @@ function injectAuthModalDOM() {
           </div>
         </form>
 
+        <!-- Forgot Password Form -->
+        <form id="formForgot" onsubmit="handleForgotSubmit(event);" style="display: none;">
+          <div style="text-align: center; margin-bottom: 1.25rem;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(234, 179, 8, 0.12); border: 1.5px solid var(--gold-accent); color: var(--gold-accent); font-size: 1.3rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem;">
+              <i class="fa-solid fa-key"></i>
+            </div>
+            <h4 style="color: #fff; font-size: 1.2rem; margin-bottom: 0.25rem;">Reset Your Password</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin: 0;">
+              Enter your registered account email. We'll send an automated, secure reset link directly to your inbox.
+            </p>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Account Email Address</label>
+            <input type="email" id="forgotEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
+          </div>
+
+          <button type="submit" id="btnSendReset" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            <i class="fa-solid fa-paper-plane"></i> Send Password Reset Link
+          </button>
+
+          <div style="text-align: center; margin-top: 1.25rem; font-size: 0.85rem;">
+            <a href="javascript:void(0)" onclick="switchAuthMode('login');" style="color: var(--text-muted); text-decoration: none; font-weight: 600;">
+              <i class="fa-solid fa-arrow-left"></i> Back to Log In
+            </a>
+          </div>
+        </form>
+
       </div>
     </div>
   `;
@@ -1223,6 +1452,8 @@ function closeAuthModal() {
 function switchAuthMode(mode) {
   const formLogin = document.getElementById('formLogin');
   const formSignup = document.getElementById('formSignup');
+  const formForgot = document.getElementById('formForgot');
+  const tabsContainer = document.querySelector('.auth-tabs');
   const tabLogin = document.getElementById('tabBtnLogin');
   const tabSignup = document.getElementById('tabBtnSignup');
   const title = document.getElementById('authModalTitle');
@@ -1232,19 +1463,68 @@ function switchAuthMode(mode) {
   if (alertBox) alertBox.style.display = 'none';
 
   if (mode === 'signup') {
+    if (tabsContainer) tabsContainer.style.display = 'grid';
     if (formLogin) formLogin.style.display = 'none';
     if (formSignup) formSignup.style.display = 'block';
+    if (formForgot) formForgot.style.display = 'none';
     if (tabLogin) tabLogin.classList.remove('active');
     if (tabSignup) tabSignup.classList.add('active');
     if (title) title.textContent = 'Create Your Free Account';
     if (subtitle) subtitle.textContent = 'Sign up to place real Cash on Delivery orders and track meals';
+  } else if (mode === 'forgot') {
+    if (tabsContainer) tabsContainer.style.display = 'none';
+    if (formLogin) formLogin.style.display = 'none';
+    if (formSignup) formSignup.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'block';
+    if (title) title.textContent = 'Password Recovery';
+    if (subtitle) subtitle.textContent = 'Receive a secure reset link to your registered email';
+
+    // Pre-fill email from login field if user already typed one
+    const loginEmailVal = document.getElementById('loginEmail')?.value;
+    const forgotEmailInput = document.getElementById('forgotEmail');
+    if (loginEmailVal && forgotEmailInput && !forgotEmailInput.value) {
+      forgotEmailInput.value = loginEmailVal;
+    }
   } else {
+    if (tabsContainer) tabsContainer.style.display = 'grid';
     if (formLogin) formLogin.style.display = 'block';
     if (formSignup) formSignup.style.display = 'none';
+    if (formForgot) formForgot.style.display = 'none';
     if (tabLogin) tabLogin.classList.add('active');
     if (tabSignup) tabSignup.classList.remove('active');
     if (title) title.textContent = 'Log In to United Restaurant';
     if (subtitle) subtitle.textContent = 'Access your saved orders, live order tracking, and Cash on Delivery checkout';
+  }
+}
+
+async function handleForgotSubmit(e) {
+  e.preventDefault();
+  const email = (document.getElementById('forgotEmail')?.value || '').trim();
+  const btn = document.getElementById('btnSendReset');
+
+  if (!email) {
+    showAuthAlert('Please enter your email address.', false);
+    return;
+  }
+
+  const originalBtnHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Reset Link...';
+  }
+
+  try {
+    await AuthEngine.sendPasswordReset(email);
+    showAuthAlert(`Password reset email sent to ${email}! Please check your inbox (and spam/junk folder) for the link to reset your password.`, true);
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Reset Email Dispatched';
+    }
+  } catch (err) {
+    showAuthAlert(err.message, false);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnHtml;
+    }
   }
 }
 

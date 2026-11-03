@@ -1960,6 +1960,28 @@ textarea.form-control {
   min-height: 120px;
 }
 
+.btn-toggle-pass {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  font-size: 0.95rem;
+  transition: color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.btn-toggle-pass:hover {
+  color: var(--gold-accent);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
