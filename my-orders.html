@@ -104,7 +104,7 @@
       <div style="background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 240px; position: relative;">
           <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
-          <input type="text" id="orderLookupInput" class="form-control" placeholder="Search by Order ID (e.g. UR-2026-...) or Phone Number" style="padding-left: 2.5rem;" oninput="filterOrdersList();">
+          <input type="text" id="orderLookupInput" class="form-control" placeholder="Search by Order ID or Phone Number..." style="padding-left: 2.5rem;" oninput="filterOrdersList();">
         </div>
         <button class="btn btn-outline btn-sm" onclick="filterOrdersList();">
           <i class="fa-solid fa-filter"></i> Filter Orders
@@ -185,7 +185,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js?v=4.1"></script>
   <script src="js/main.js?v=4.0"></script>
-  <script src="js/auth.js?v=4.6"></script>
+  <script src="js/auth.js?v=4.7"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {

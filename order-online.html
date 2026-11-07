@@ -675,17 +675,17 @@
       <form id="orderForm" onsubmit="submitFinalOrder(event);">
         <div class="form-group">
           <label class="form-label" for="cust-name">Your Full Name *</label>
-          <input type="text" id="cust-name" class="form-control" placeholder="e.g. Tanvir Ahmed" required>
+          <input type="text" id="cust-name" class="form-control" required>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="cust-phone">Phone Number (For Delivery Confirmation) *</label>
-          <input type="tel" id="cust-phone" class="form-control" placeholder="e.g. 01700-000000" required>
+          <input type="tel" id="cust-phone" class="form-control" required>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="cust-address">Delivery Address (House, Road, Area in Dhaka) *</label>
-          <textarea id="cust-address" class="form-control" placeholder="e.g. House 14, Road 45, Gulshan-2, Dhaka" style="min-height: 80px;" required></textarea>
+          <textarea id="cust-address" class="form-control" style="min-height: 80px;" required></textarea>
         </div>
 
         <!-- Cash on Delivery Highlighted Notice -->
@@ -700,7 +700,7 @@
 
         <div class="form-group">
           <label class="form-label" for="cust-notes">Special Cooking / Delivery Notes</label>
-          <input type="text" id="cust-notes" class="form-control" placeholder="e.g. Less spicy, extra sauce, call when downstairs">
+          <input type="text" id="cust-notes" class="form-control">
         </div>
 
         <button type="submit" id="btnSubmitOrder" class="btn btn-primary btn-lg btn-confirm-order" style="margin-top: 1rem;">
@@ -830,7 +830,7 @@
   <script src="js/firebase-config.js?v=4.1"></script>
   <script src="js/menu-data.js?v=4.0"></script>
   <script src="js/main.js?v=4.0"></script>
-  <script src="js/auth.js?v=4.6"></script>
+  <script src="js/auth.js?v=4.7"></script>
 
   <!-- Complete Online Ordering JavaScript Engine -->
   <script>

@@ -1466,7 +1466,7 @@ function injectAuthModalDOM() {
         <form id="formLogin" onsubmit="handleLoginSubmit(event);">
           <div class="form-group" style="margin-bottom: 1rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Email Address</label>
-            <input type="email" id="loginEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
+            <input type="email" id="loginEmail" class="form-control" required>
           </div>
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
@@ -1474,7 +1474,7 @@ function injectAuthModalDOM() {
               <a href="javascript:void(0)" onclick="switchAuthMode('forgot');" style="font-size: 0.8rem; color: var(--gold-accent); text-decoration: none; font-weight: 600;">Forgot Password?</a>
             </div>
             <div style="position: relative;">
-              <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required style="padding-right: 2.75rem;">
+              <input type="password" id="loginPassword" class="form-control" required style="padding-right: 2.75rem;">
               <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('loginPassword', this)" title="Show/Hide Password" aria-label="Toggle Password visibility">
                 <i class="fa-solid fa-eye"></i>
               </button>
@@ -1494,24 +1494,24 @@ function injectAuthModalDOM() {
         <form id="formSignup" onsubmit="handleSignupSubmit(event);" style="display: none;">
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-user"></i> Full Name</label>
-            <input type="text" id="signupName" class="form-control" placeholder="e.g. Your Full Name" required>
+            <input type="text" id="signupName" class="form-control" required>
           </div>
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Email Address</label>
-            <input type="email" id="signupEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
+            <input type="email" id="signupEmail" class="form-control" required>
           </div>
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-phone"></i> Phone Number (WhatsApp)</label>
-            <input type="tel" id="signupPhone" class="form-control" placeholder="e.g. 01950-177666" required>
+            <input type="tel" id="signupPhone" class="form-control" required>
           </div>
           <div class="form-group" style="margin-bottom: 0.85rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-location-dot"></i> Default Delivery Address in Dhaka</label>
-            <input type="text" id="signupAddress" class="form-control" placeholder="e.g. House 14, Road 5, United City, Gulshan-2">
+            <input type="text" id="signupAddress" class="form-control">
           </div>
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-lock"></i> Create Password (min 6 chars)</label>
             <div style="position: relative;">
-              <input type="password" id="signupPassword" class="form-control" placeholder="Create a secure password" minlength="6" required style="padding-right: 2.75rem;">
+              <input type="password" id="signupPassword" class="form-control" minlength="6" required style="padding-right: 2.75rem;">
               <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('signupPassword', this)" title="Show/Hide Password" aria-label="Toggle Password visibility">
                 <i class="fa-solid fa-eye"></i>
               </button>
@@ -1540,7 +1540,7 @@ function injectAuthModalDOM() {
 
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-envelope"></i> Account Email Address</label>
-            <input type="email" id="forgotEmail" class="form-control" placeholder="e.g. yourname@gmail.com" required>
+            <input type="email" id="forgotEmail" class="form-control" required>
           </div>
 
           <button type="submit" id="btnSendReset" class="btn btn-primary" style="width: 100%; justify-content: center;">
