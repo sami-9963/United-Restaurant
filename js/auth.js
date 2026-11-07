@@ -1370,7 +1370,12 @@ function injectAuthModalDOM() {
               <label class="form-label" style="font-size: 0.85rem; margin-bottom: 0;"><i class="fa-solid fa-lock"></i> Password</label>
               <a href="javascript:void(0)" onclick="switchAuthMode('forgot');" style="font-size: 0.8rem; color: var(--gold-accent); text-decoration: none; font-weight: 600;">Forgot Password?</a>
             </div>
-            <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+            <div style="position: relative;">
+              <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required style="padding-right: 2.75rem;">
+              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('loginPassword', this)" title="Show/Hide Password" aria-label="Toggle Password visibility">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
             <i class="fa-solid fa-check"></i> Sign In to Account
@@ -1402,7 +1407,12 @@ function injectAuthModalDOM() {
           </div>
           <div class="form-group" style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-size: 0.85rem;"><i class="fa-solid fa-lock"></i> Create Password (min 6 chars)</label>
-            <input type="password" id="signupPassword" class="form-control" placeholder="Create a secure password" minlength="6" required>
+            <div style="position: relative;">
+              <input type="password" id="signupPassword" class="form-control" placeholder="Create a secure password" minlength="6" required style="padding-right: 2.75rem;">
+              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('signupPassword', this)" title="Show/Hide Password" aria-label="Toggle Password visibility">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
             <i class="fa-solid fa-user-plus"></i> Create Account & Proceed
@@ -1535,6 +1545,25 @@ async function handleForgotSubmit(e) {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalBtnHtml;
+    }
+  }
+}
+
+function togglePasswordVisibility(fieldId, btn) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  const icon = btn.querySelector('i');
+  if (field.type === 'password') {
+    field.type = 'text';
+    if (icon) {
+      icon.classList.remove('fa-eye');
+      icon.classList.add('fa-eye-slash');
+    }
+  } else {
+    field.type = 'password';
+    if (icon) {
+      icon.classList.remove('fa-eye-slash');
+      icon.classList.add('fa-eye');
     }
   }
 }
