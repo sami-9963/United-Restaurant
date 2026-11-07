@@ -402,19 +402,7 @@ const AuthEngine = {
     }
 
     // 2. Secure Re-authentication
-    // Re-authenticate against local and cloud database records
-    const users = this.getUsers();
-    const userIndex = users.findIndex(u => 
-      (u.id && u.id === currentUser.id) || 
-      (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
-    );
-
-    if (userIndex >= 0) {
-      const storedPassword = users[userIndex].password;
-      if (storedPassword && storedPassword !== currentPassword) {
-        throw new Error('Current password is incorrect. Re-authentication failed.');
-      }
-    }
+    let reauthSuccess = false;
 
     // Re-authenticate with Firebase Authentication (Backend Provider)
     if (window.urAuth) {
@@ -426,15 +414,17 @@ const AuthEngine = {
           try {
             const cred = await window.urAuth.signInWithEmailAndPassword(currentUser.email, currentPassword);
             fbUser = cred.user;
+            reauthSuccess = true;
           } catch (signInErr) {
             console.warn('Firebase Auth sign-in during re-auth:', signInErr.code, signInErr.message);
-            if (signInErr.code === 'auth/wrong-password' || signInErr.code === 'auth/invalid-credential') {
+            if (signInErr.code === 'auth/wrong-password' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-login-credentials') {
               throw new Error('Current password is incorrect. Re-authentication failed.');
             }
             if (signInErr.code === 'auth/user-not-found') {
               try {
                 const newCred = await window.urAuth.createUserWithEmailAndPassword(currentUser.email, currentPassword);
                 fbUser = newCred.user;
+                reauthSuccess = true;
               } catch (createErr) {
                 console.warn('Firebase Auth provisioning during reauth note:', createErr.message);
               }
@@ -445,6 +435,7 @@ const AuthEngine = {
           if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth.EmailAuthProvider) {
             const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
             await fbUser.reauthenticateWithCredential(credential);
+            reauthSuccess = true;
           }
         }
 
@@ -452,6 +443,7 @@ const AuthEngine = {
         if (fbUser) {
           try {
             await fbUser.updatePassword(newPassword);
+            reauthSuccess = true;
             console.log('🔥 Password successfully updated in Firebase Auth backend for:', currentUser.email);
           } catch (fbPassErr) {
             console.warn('Firebase Auth updatePassword note:', fbPassErr.message);
@@ -459,6 +451,7 @@ const AuthEngine = {
               const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
               await fbUser.reauthenticateWithCredential(credential);
               await fbUser.updatePassword(newPassword);
+              reauthSuccess = true;
             }
           }
         }
@@ -467,9 +460,23 @@ const AuthEngine = {
         if (authErr.message && authErr.message.includes('Current password is incorrect')) {
           throw authErr;
         }
-        if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+        if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
           throw new Error('Current password is incorrect. Re-authentication failed.');
         }
+      }
+    }
+
+    // Fallback: verify against stored local/cloud password if Firebase Auth was not available
+    const users = this.getUsers();
+    const userIndex = users.findIndex(u => 
+      (u.id && u.id === currentUser.id) || 
+      (u.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+
+    if (!reauthSuccess && userIndex >= 0) {
+      const storedPassword = users[userIndex].password;
+      if (storedPassword && storedPassword !== currentPassword) {
+        throw new Error('Current password is incorrect. Re-authentication failed.');
       }
     }
 
@@ -630,15 +637,124 @@ const AuthEngine = {
   },
 
   // Log in existing user
-  login(email, password) {
+  async login(email, password) {
     email = (email || '').trim().toLowerCase();
     if (!email || !password) throw new Error('Please enter both email and password.');
 
-    const users = this.getUsers();
-    let user = users.find(u => (u.email || '').toLowerCase() === email && u.password === password);
+    const authInstance = window.urAuth || (typeof firebase !== 'undefined' && firebase.auth ? firebase.auth() : null);
+    let firebaseUser = null;
+    let authError = null;
 
-    if (!user) {
-      throw new Error('Invalid email or password. Please verify your credentials.');
+    if (authInstance) {
+      try {
+        const userCredential = await authInstance.signInWithEmailAndPassword(email, password);
+        firebaseUser = userCredential.user;
+        console.log('🔥 Firebase Auth sign-in successful for:', email);
+      } catch (err) {
+        authError = err;
+        console.warn('Firebase Auth sign-in note:', err.code, err.message);
+      }
+    }
+
+    // Load local users
+    const users = this.getUsers();
+    let userIndex = users.findIndex(u => (u.email || '').toLowerCase() === email);
+    let user = userIndex >= 0 ? users[userIndex] : null;
+
+    if (firebaseUser) {
+      // Firebase authenticated successfully!
+      // If user exists locally, update password so local cache stays in sync
+      if (user) {
+        user.password = password;
+        users[userIndex] = user;
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      } else {
+        // User not in local storage (different browser, private mode, or cleared cache).
+        const isOwner = email === AUTHORIZED_ADMIN_EMAIL;
+        user = {
+          id: firebaseUser.uid || ('USR-' + Date.now().toString(36).toUpperCase()),
+          name: firebaseUser.displayName || email.split('@')[0],
+          email: email,
+          password: password,
+          phone: firebaseUser.phoneNumber || '',
+          address: '',
+          role: isOwner ? 'admin' : 'customer',
+          createdAt: new Date().toISOString()
+        };
+        users.push(user);
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      }
+
+      // Sync additional profile fields and updated password with Google Cloud Firestore
+      if (window.urDb) {
+        try {
+          let docSnap = await window.urDb.collection('users').doc(firebaseUser.uid).get();
+          if (!docSnap.exists && user.id && user.id !== firebaseUser.uid) {
+            docSnap = await window.urDb.collection('users').doc(user.id).get();
+          }
+          if (!docSnap.exists) {
+            const qSnap = await window.urDb.collection('users').where('email', '==', email).limit(1).get();
+            if (!qSnap.empty) docSnap = qSnap.docs[0];
+          }
+
+          if (docSnap && docSnap.exists) {
+            const cloudData = docSnap.data();
+            Object.assign(user, cloudData);
+            user.password = password; // Fresh password takes precedence
+            if (userIndex >= 0) {
+              users[userIndex] = user;
+            }
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+          }
+
+          // Persist fresh password into Firestore database
+          window.urDb.collection('users').doc(user.id || firebaseUser.uid).set({
+            name: user.name,
+            email: user.email,
+            password: password,
+            role: user.role,
+            phone: user.phone || '',
+            address: user.address || '',
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(e => console.warn('Firestore password sync note:', e.message));
+        } catch (dbErr) {
+          console.warn('Firestore user fetch note:', dbErr.message);
+        }
+      }
+    } else {
+      // Firebase auth was either unavailable or rejected the credentials
+      if (authError) {
+        // If Firebase rejected the credentials
+        if (
+          authError.code === 'auth/wrong-password' || 
+          authError.code === 'auth/invalid-credential' || 
+          authError.code === 'auth/invalid-login-credentials'
+        ) {
+          throw new Error('Invalid email or password. Please verify your credentials.');
+        }
+
+        // If user is not yet in Firebase Auth backend, check local storage
+        if (authError.code === 'auth/user-not-found') {
+          if (!user || user.password !== password) {
+            throw new Error('Invalid email or password. Please verify your credentials.');
+          }
+          // Legacy user credentials matched locally - auto-provision into Firebase Auth
+          if (authInstance) {
+            authInstance.createUserWithEmailAndPassword(email, password)
+              .catch(e => console.warn('Firebase Auth user auto-provision note:', e.message));
+          }
+        } else {
+          // Other Firebase error (e.g., offline / network blocked) - fallback to local storage
+          if (!user || user.password !== password) {
+            throw new Error('Invalid email or password. Please verify your credentials.');
+          }
+        }
+      } else {
+        // No Firebase auth instance available at all
+        if (!user || user.password !== password) {
+          throw new Error('Invalid email or password. Please verify your credentials.');
+        }
+      }
     }
 
     const isOwner = (user.email || '').trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL;
@@ -656,19 +772,6 @@ const AuthEngine = {
     }
 
     this.setCurrentUser(user);
-
-    // Keep Firebase Auth session active in background
-    if (window.urAuth) {
-      window.urAuth.signInWithEmailAndPassword(email, password)
-        .then(() => console.log('🔥 Active Firebase Auth session established for:', email))
-        .catch(signInErr => {
-          if (signInErr.code === 'auth/user-not-found') {
-            window.urAuth.createUserWithEmailAndPassword(email, password)
-              .catch(e => console.warn('Firebase Auth user auto-provision note:', e.message));
-          }
-        });
-    }
-
     return user;
   },
 
@@ -1576,13 +1679,22 @@ function showAuthAlert(msg, isSuccess = false) {
   box.style.display = 'block';
 }
 
-function handleLoginSubmit(e) {
+async function handleLoginSubmit(e) {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
-  const pass = document.getElementById('loginPassword').value;
+  const emailInput = document.getElementById('loginEmail');
+  const passInput = document.getElementById('loginPassword');
+  const email = (emailInput?.value || '').trim();
+  const pass = passInput?.value || '';
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In...';
+  }
 
   try {
-    const user = AuthEngine.login(email, pass);
+    const user = await AuthEngine.login(email, pass);
     const isAdmin = AuthEngine.isAdmin();
     showAuthAlert(`Welcome back, ${user.name}! ${isAdmin ? '👑 (Admin Access Granted)' : ''}`, true);
     setTimeout(() => {
@@ -1590,12 +1702,16 @@ function handleLoginSubmit(e) {
       if (typeof autofillOrderCustomerFields === 'function') {
         autofillOrderCustomerFields();
       }
-      if (window.location.pathname.includes('admin-orders')) {
+      if (window.location.pathname.includes('admin-orders') || window.location.pathname.includes('profile')) {
         window.location.reload();
       }
     }, 700);
   } catch (err) {
     showAuthAlert(err.message, false);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHtml;
+    }
   }
 }
 
